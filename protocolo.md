@@ -1,345 +1,241 @@
-# Protocolo de aplicación — Práctica 2
+# Protocolo de aplicación — versión 1
 
-Especificación del protocolo de aplicación de texto usado entre los dos objetos inteligentes (ESP32) y el servidor TCP (Python).
+Este documento explica quién envía cada mensaje, quién lo recibe, qué significa cada parámetro y qué respuesta se espera. **La lógica, los rangos y los plazos establecidos se conservan.**
 
-## 1. Visión general
+## 1. Participantes y recorrido de la información
 
-El protocolo permite que:
-
-- el **sensor** (ESP32 + HC-SR04) envíe al servidor la distancia medida;
-- el **servidor** clasifique la distancia y ordene al **actuador** (ESP32 + 3 LEDs) qué LED encender y cómo.
-
-| Elemento | Valor |
-|---|---|
-| Transporte | TCP sobre IP, WiFi (IEEE 802.11) |
-| Servidor (IP de ejemplo, configurable) | `192.168.0.102`, puerto TCP **5000** |
-| Actuador (ESP32; IP de ejemplo) | `192.168.0.100` |
-| Sensor (ESP32; IP de ejemplo) | `192.168.0.101` |
-| Quién inicia la conexión | Los dos ESP32 (clientes) se conectan al servidor |
-
-Pila de capas:
-
-```
-Protocolo propio (REGISTER / POST / SET)
-TCP
-IP
-IEEE 802.11
-```
-
-## 2. Convenciones de formato
-
-- Codificación: **ASCII**.
-- Cada mensaje es **una línea de texto terminada en `\n`**. El receptor también acepta `\r\n` (por ejemplo, el que envía Ncat con `-C`).
-- Razón del delimitador: TCP es un flujo de bytes y **no conserva los límites de los mensajes**. Un `send()` puede llegar partido en varios segmentos o varios mensajes pueden llegar juntos, así que el receptor acumula bytes en un búfer y procesa un mensaje por cada `\n` encontrado.
-- Longitud máxima de un mensaje: **128 bytes** (incluido el `\n`). Si se excede, el receptor responde `ERROR BAD_FORMAT` y descarta hasta el siguiente `\n`.
-- Estructura general: `COMANDO arg=valor[, arg=valor]` (según el comando).
-  - Comando y argumentos distinguen **mayúsculas y minúsculas** (`REGISTER`, `redLed`, `blink_4`).
-  - Entre el comando y los argumentos va **un espacio**.
-  - Los argumentos se separan con una coma. Quien envía **debe** usar `", "` (coma y espacio); quien recibe acepta la coma con o sin un espacio posterior.
-
-## 3. Catálogo de comandos
-
-### 3.1 `REGISTER`
-
-Declara el rol del cliente. Es el primer mensaje que debe enviar cada ESP32 después de conectarse.
-
-| Campo | Valor |
-|---|---|
-| Dirección | Cliente → Servidor |
-| Argumento | `type` |
-| Valores | `sensor`, `actuator` |
-| Respuesta | `OK` o `ERROR <código>` |
-
-```
-REGISTER type=sensor
-REGISTER type=actuator
-```
-
-### 3.2 `POST`
-
-Envía una lectura de distancia.
-
-| Campo | Valor |
-|---|---|
-| Dirección | Sensor → Servidor |
-| Argumento | `distance` |
-| Valores | Entero en **cm** entre 0 y 400, o `-1` si la lectura es inválida |
-| Frecuencia | Una vez cada **500 ms** (2 lecturas/s) |
-| Respuesta | `OK` o `ERROR <código>` |
-
-```
-POST distance=15
-POST distance=-1
-```
-
-Notas:
-
-- El sensor redondea al centímetro más cercano antes de enviar.
-- El sensor envía `-1` cuando no recibe eco dentro del tiempo límite o la medición cae fuera del rango útil del HC-SR04.
-
-### 3.3 `SET`
-
-Ordena al actuador el estado de cada LED.
-
-| Campo | Valor |
-|---|---|
-| Dirección | Servidor → Actuador |
-| Argumentos | `redLed`, `yellowLed`, `greenLed` (los tres son obligatorios, cada uno una sola vez) |
-| Valores | `on`, `off`, `blink_2` (2 Hz), `blink_4` (4 Hz) |
-| Respuesta | `OK` o `ERROR <código>` |
-
-```
-SET redLed=off, yellowLed=on, greenLed=off
-```
-
-Significado de los valores:
-
-| Valor | Efecto |
-|---|---|
-| `on` | LED encendido fijo |
-| `off` | LED apagado |
-| `blink_2` | Parpadea a 2 Hz (2 ciclos encendido/apagado por segundo) |
-| `blink_4` | Parpadea a 4 Hz (4 ciclos encendido/apagado por segundo) |
-
-## 4. Respuestas y códigos de error
-
-Todo mensaje recibido se responde con una línea:
-
-- `OK` tras `REGISTER`: rol registrado; tras `POST`: lectura validada y aceptada para procesamiento (no garantiza actuación física); tras `SET`: el actuador aplicó la configuración solicitada.
-- `ERROR <código>`: el mensaje fue rechazado.
-
-| Código | Cuándo se envía |
-|---|---|
-| `UNKNOWN_COMMAND` | El comando no es `REGISTER`, `POST` ni `SET` |
-| `BAD_FORMAT` | El mensaje no cumple la gramática (§5) o excede 128 bytes |
-| `MISSING_ARG` | Falta un argumento obligatorio |
-| `INVALID_VALUE` | El valor está fuera de dominio (por ejemplo `type=robot`, `distance=900`) |
-| `NOT_REGISTERED` | Se envió `POST` o `SET` antes de `REGISTER` |
-| `ALREADY_REGISTERED` | Se envió `REGISTER` por una conexión ya registrada |
-| `NOT_ALLOWED` | El comando no corresponde al rol (por ejemplo, un actuador envía `POST`) |
-| `UNKNOWN_ARG` | Se recibió una clave de argumento no reconocida |
-| `DUPLICATE_ARG` | Se repitió una clave de argumento |
-
-## 5. Gramática formal (EBNF)
-
-```ebnf
-message        = ( register | post | set ), newline ;
-newline        = "\n" ;                      (* el receptor también acepta "\r\n" *)
-
-register       = "REGISTER", " ", "type=", ( "sensor" | "actuator" ) ;
-
-post           = "POST", " ", "distance=", distance ;
-distance       = "-1" | digit, { digit } ;  (* validar semánticamente 0..400; -1 es inválida *)
-
-set            = "SET", " ", led-arg, sep, led-arg, sep, led-arg ;
-                 (* las tres claves, cada una exactamente una vez; *)
-                 (* se recomienda el orden redLed, yellowLed, greenLed *)
-led-arg        = led-key, "=", led-value ;
-led-key        = "redLed" | "yellowLed" | "greenLed" ;
-led-value      = "on" | "off" | "blink_2" | "blink_4" ;
-sep            = ",", [ " " ] ;
-
-response       = ( "OK" | "ERROR", " ", error-code ), newline ;
-error-code     = upper, { upper | "_" } ;
-
-digit          = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
-upper          = "A" | "B" | (* ... *) "Z" ;
-```
-
-## 6. Diagrama de secuencia
-
-```mermaid
-sequenceDiagram
-    participant A as ESP32 Actuador
-    participant S as Servidor Python
-    participant N as ESP32 Sensor
-
-    A->>S: conexión TCP (192.168.0.102:5000)
-    A->>S: REGISTER type=actuator
-    S-->>A: OK
-    S->>A: SET redLed=off, yellowLed=off, greenLed=off
-    A-->>S: OK
-
-    N->>S: conexión TCP (192.168.0.102:5000)
-    N->>S: REGISTER type=sensor
-    S-->>N: OK
-
-    loop cada 500 ms
-        N->>S: POST distance=25
-        S-->>N: OK
-        Note over S: clasifica: 20 < d <= 30 → verde
-        opt el rango cambió (o refresco cada 1 s)
-            S->>A: SET redLed=off, yellowLed=off, greenLed=on
-            A-->>S: OK
-        end
-    end
-
-    N->>S: POST distance=8
-    S-->>N: OK
-    Note over S: 0 <= d <= 10 → rojo (cambió de rango)
-    S->>A: SET redLed=blink_4, yellowLed=off, greenLed=off
-    A-->>S: OK
-```
-
-## 7. Estados de la conexión
-
-```mermaid
-stateDiagram-v2
-    [*] --> Conectado: conexión TCP aceptada
-    Conectado --> Registrado: REGISTER válido → OK
-    Conectado --> Conectado: otro comando → ERROR NOT_REGISTERED
-    Registrado --> Registrado: mensaje permitido para su rol → OK
-    Registrado --> Registrado: mensaje no permitido → ERROR NOT_ALLOWED
-    Registrado --> [*]: cierre TCP, error de socket o timeout
-    Conectado --> [*]: cierre TCP o error de socket
-```
-
-Mensajes permitidos una vez registrado:
-
-| Rol | Envía | Recibe |
+| Participante | Papel | Responsabilidad |
 |---|---|---|
-| `sensor` | `POST` | respuestas `OK` / `ERROR` |
-| `actuator` | respuestas `OK` / `ERROR` a cada `SET` | `SET` |
+| Cliente sensor: ESP32 + HC-SR04 | Inicia una conexión TCP hacia la PC. | Medir y enviar distancias sin filtrar; recibir confirmaciones de lectura. |
+| Cliente actuador: ESP32 + tres LEDs | Inicia otra conexión TCP hacia la PC. | Ejecutar órdenes y confirmar la actualización de los pines. |
+| Servidor: PC con Python | Acepta ambas conexiones en el puerto 5000. | Validar, filtrar y clasificar distancias; enviar órdenes y comprobar su confirmación. |
 
-## 8. Manejo de fallos
-
-| Situación | Comportamiento |
-|---|---|
-| El sensor no envía mensajes durante **5 s** | El servidor lo considera caído, cierra su conexión y envía `SET` con los tres LEDs en `off` al actuador. Cuando el sensor reconecta y se registra, el servicio se reanuda con el siguiente `POST`. |
-| El sensor se desconecta (cierre TCP o error de socket) | Igual que el caso anterior: LEDs en `off`. |
-| El actuador se desconecta | El servidor sigue aceptando `POST` y clasificando, pero sin enviar `SET`. Al reconectar y registrarse, el servidor le envía de inmediato el último estado calculado (o todo `off` si no hay lectura vigente). |
-| Un cliente se registra con un rol ya ocupado | Se **reemplaza** la conexión anterior: el servidor cierra el socket viejo y adopta el nuevo. Evita que una conexión "fantasma" tras reiniciar un ESP32 bloquee su rol. |
-| Se pierde el WiFi o el servidor en un ESP32 | El ESP32 reintenta la conexión cada **2 s** y, al lograrla, vuelve a enviar `REGISTER`. |
-| `POST` con `distance=-1` | El servidor responde `OK` y trata la lectura como inválida: LEDs en `off`. |
-
-Nota: el actuador no envía mensajes periódicos. Para evitar estados obsoletos, el servidor reenvía el estado vigente cada 1 s mientras haya sensor y actuador conectados; el actuador apaga todos los LEDs si pasan 3 s sin recibir un `SET` válido. El actuador debe implementar el parpadeo sin bloquear la lectura del socket. Estos intervalos son valores de diseño propuestos y deben verificarse en el código.
-
-## 9. Lógica de control (distancia → LEDs)
-
-Los rangos son contiguos y no se solapan; cada uno incluye su límite superior.
-
-| Distancia `d` (cm) | Rango | `SET` enviado al actuador |
-|---|---|---|
-| `0 ≤ d ≤ 10` | Rojo | `SET redLed=blink_4, yellowLed=off, greenLed=off` |
-| `10 < d ≤ 20` | Amarillo | `SET redLed=off, yellowLed=blink_2, greenLed=off` |
-| `20 < d ≤ 30` | Verde | `SET redLed=off, yellowLed=off, greenLed=on` |
-| `d > 30` o `d = -1` | Fuera de alcance / inválida | `SET redLed=off, yellowLed=off, greenLed=off` |
-
-Reglas:
-
-- El servidor envía `SET` inmediatamente cuando cambia el estado de los LEDs, al registrar el actuador, ante pérdida del sensor y, adicionalmente, **cada 1 s** como refresco de seguridad. No espera a que llegue otro `POST` para procesar un cambio.
-- Cada `SET` incluye siempre los tres LEDs, de modo que el actuador no depende de estados anteriores.
-- Trazabilidad: esta tabla implementa RF2 (tres rangos contiguos sin solapamiento) y RF3 (comportamiento distinto por rango).
-
-## 10. Ejemplos y pruebas con Ncat y Wireshark
-
-### 10.1 Traza de ejemplo
-
-```
-sensor   → servidor : REGISTER type=sensor
-servidor → sensor   : OK
-sensor   → servidor : POST distance=15
-servidor → sensor   : OK
-servidor → actuador : SET redLed=off, yellowLed=blink_2, greenLed=off
-actuador → servidor : OK
-sensor   → servidor : POST distance=-1
-servidor → sensor   : OK
-servidor → actuador : SET redLed=off, yellowLed=off, greenLed=off
-actuador → servidor : OK
-```
-
-### 10.2 Casos de error
-
-```
-cliente  → servidor : POST distance=15            (sin REGISTER)
-servidor → cliente  : ERROR NOT_REGISTERED
-cliente  → servidor : REGISTER type=robot
-servidor → cliente  : ERROR INVALID_VALUE
-cliente  → servidor : GET distance
-servidor → cliente  : ERROR UNKNOWN_COMMAND
-```
-
-### 10.3 Pruebas sin hardware (Ncat)
-
-Cliente de prueba que simula al sensor (`-C` envía `\r\n`, que el servidor acepta):
-
-```
-ncat -C 192.168.0.102 5000
-REGISTER type=sensor
-POST distance=15
-```
-
-### 10.4 Captura en Wireshark
-
-- Filtro: `tcp.port == 5000`
-- Para ver un mensaje completo: clic derecho sobre un paquete con datos → *Follow → TCP Stream*.
-- Para medir **latencia de mensajes observada**, restar las marcas de tiempo de `POST` y del `SET` correspondiente (solo si hay cambio de rango). No equivale al tiempo físico extremo a extremo; medir este último por separado.
-
-## 11. Diagrama de arquitectura (despliegue lógico)
+Los dos clientes se comunican con el servidor. La decisión del color se realiza en la PC. Las flechas del diagrama representan mensajes; ambas conexiones TCP son bidireccionales.
 
 ```mermaid
 flowchart LR
-    subgraph LAN[Red local Wi-Fi IEEE 802.11]
-        R[Router / AP]
-        N[ESP32 sensor + HC-SR04\nCliente TCP]
-        A[ESP32 actuador + 3 LEDs\nCliente TCP]
-        S[PC Python\nServidor TCP :5000]
-        N --- R
-        A --- R
-        S --- R
+    subgraph RED["Red WiFi — IEEE 802.11"]
+        SENSOR["Cliente sensor<br/>ESP32 + HC-SR04"]
+        SERVIDOR["Servidor TCP<br/>PC — Python<br/>Filtro y clasificación"]
+        ACTUADOR["Cliente actuador<br/>ESP32 + LEDs rojo, amarillo y verde"]
+        SENSOR -->|"REGISTRO / LECTURA"| SERVIDOR
+        SERVIDOR -->|"ACEPTADO / RECIBIDO / ERROR"| SENSOR
+        SERVIDOR -->|"ACEPTADO / ORDEN / ERROR"| ACTUADOR
+        ACTUADOR -->|"REGISTRO / APLICADO"| SERVIDOR
     end
-    N -->|REGISTER / POST distance| S
-    S -->|SET estados LED| A
-    S -.->|OK / ERROR| N
-    A -.->|OK / ERROR| S
 ```
 
-Las flechas representan mensajes de aplicación, no conexiones TCP iniciadas por el servidor. **Ambos ESP32 inician su propia conexión TCP hacia Python**. Las direcciones IP son configurables y no identifican el rol: este se establece con `REGISTER`.
+La pila utilizada es: **protocolo de aplicación → TCP → IP → WiFi**. No se necesita acceso a Internet para ejecutar el sistema.
 
-## 12. Casos límite y reglas operativas
+## 2. Cómo se escribe un mensaje
 
-- `POST distance=10` → rojo; `11` → amarillo; `20` → amarillo; `21` → verde; `30` → verde; `31` → todos apagados.
-- `POST distance=-1` → todos apagados; `POST distance=401` → `ERROR INVALID_VALUE`.
-- Un `POST` anterior al registro → `ERROR NOT_REGISTERED`; `POST` desde rol actuador → `ERROR NOT_ALLOWED`.
-- Argumentos ausentes → `ERROR MISSING_ARG`; duplicados → `ERROR DUPLICATE_ARG`; desconocidos → `ERROR UNKNOWN_ARG`; texto mal formado → `ERROR BAD_FORMAT`.
-- El receptor debe tolerar segmentos TCP parciales y varios mensajes concatenados, y procesarlos en orden.
-- `OK` y `ERROR` son respuestas, no comandos nuevos; se procesan en la conexión y el orden correspondiente. Como no existen identificadores de petición, **cada emisor mantiene como máximo una petición pendiente de respuesta por conexión**. El servidor debe serializar los `SET` y esperar la respuesta antes de enviar otro; definir timeout y reconexión en la implementación.
-- Al registrar el actuador, el servidor envía `SET` con todo apagado si no hay una lectura vigente; el sensor sin lecturas válidas también fuerza el apagado.
-- Si el sensor queda sin mensajes durante 5 s, el servidor invalida su última lectura. El actuador apaga localmente después de 3 s sin `SET`, incluso si el servidor deja de responder.
-- **Alcance del sensor:** aunque el protocolo admite `0..400` para pruebas, un HC-SR04 real no mide con fiabilidad distancias cercanas a cero. Fuera de su rango físico útil se envía `-1`. El comportamiento en `0 cm` es una prueba lógica, no una medición física esperada.
+Cada mensaje es una línea de texto ASCII terminada en salto de línea:
 
-## 13. Plan de validación (pendiente de ejecutar)
+```text
+COMANDO parametro=valor, parametro=valor\n
+```
 
-| Prueba | Procedimiento | Resultado esperado | Evidencia |
-|---|---|---|---|
-| Rangos | Medir cerca de 10, 20 y 30 cm y límites vecinos | Rojo / amarillo / verde según §9 | Video, logs |
-| Fuera de rango | Alejar objeto a más de 30 cm | LEDs apagados | Video, captura |
-| Lectura inválida | Simular `POST distance=-1` | LEDs apagados | Ncat y Wireshark |
-| Comandos inválidos | Enviar mensajes de §12 | `ERROR` apropiado | Captura TCP |
-| Framing TCP | Enviar líneas juntas o fragmentadas | Una respuesta por línea | Logs y Wireshark |
-| Desconexión sensor | Interrumpir sensor | Apagado y reconexión | Video con tiempos |
-| Desconexión servidor | Interrumpir PC/Wi-Fi | Apagado local del actuador en máximo 3 s | Video con tiempos |
-| Estabilidad | Operación continua al menos 10 min | Sin bloqueos ni reinicios | Registro de ejecución |
-| Exactitud | Comparar distancias con cinta métrica | Error declarado, referencia ±3 cm | Tabla de mediciones |
-| Muestreo | Contar `POST` por segundo | Referencia ≥2/s | Logs |
-| Respuesta extremo a extremo | Medir desde lectura del sensor hasta cambio físico del LED | Referencia ≤1 s | Instrumentación/video |
-
-**Importante:** esta tabla describe pruebas propuestas, no resultados obtenidos. Registrar mediciones reales y señalar cualquier incumplimiento. Wireshark mide el intervalo entre mensajes observados, pero por sí solo no prueba el tiempo de actuación física.
-
-## 14. Diagramas adicionales exigidos por la práctica
-
-El informe técnico general también debe incluir **un diagrama de circuito de cada ESP32** (pines, alimentación, resistencias y tierra común) y un **diagrama de clases** coherente con las clases reales de Python y de los firmwares. No se inventan aquí pines ni clases porque deben extraerse del código y montaje efectivos.
-
-## 15. Decisiones de diseño
-
-| Decisión | Justificación |
+| Regla | Significado |
 |---|---|
-| Protocolo de **texto** | Se puede probar a mano con Ncat y leer en Wireshark; facilita la depuración y la defensa. |
-| Delimitador `\n` | TCP no preserva fronteras de mensaje; el delimitador permite reensamblar mensajes partidos o pegados. |
-| Respuesta `OK` / `ERROR` a cada mensaje | Confirma la recepción a nivel de aplicación y permite diagnosticar fallos. |
-| `REGISTER` previo | El servidor identifica el rol de cada socket sin depender de la IP del cliente. |
-| `SET` siempre con los tres LEDs | El actuador no guarda estado previo; cada orden es autocontenida. |
-| `SET` ante cambio y refresco cada 1 s | Mantiene respuesta rápida y permite al actuador detectar pérdida de comunicación con un temporizador local de 3 s. |
-| Lectura inválida = `-1` | Se distingue una falla de medición de una distancia real sin añadir otro comando. |
-| Timeout del sensor = 5 s (10 lecturas perdidas) | Tolera pérdidas breves de WiFi pero evita dejar un LED encendido con datos viejos. |
-| Rangos con límite superior incluido | Los puntos de prueba (10, 20 y 30 cm) pertenecen a rojo, amarillo y verde respectivamente. |
+| Terminación | Se envía LF (`\n`); se acepta LF o CRLF (`\r\n`). El salto real termina el mensaje: no se escriben literalmente barra y letra n. |
+| Tamaño | Máximo 128 bytes contando el terminador. |
+| Separación | Un espacio entre comando y argumentos; se emite coma y espacio entre parámetros. Se acepta coma con o sin un espacio posterior. |
+| Nombres | Comandos en mayúsculas y parámetros en minúsculas; se distinguen mayúsculas y minúsculas. |
+| Parámetros | Todos los indicados son obligatorios, aparecen una sola vez y pueden ir en cualquier orden. No se permiten parámetros adicionales. |
+| Números | Enteros sin signo de hasta 4294967295; secuencias desde 1. Distancias entre 0 y 400, con punto decimal, sin signos ni notación exponencial. |
+| Recepción TCP | Una lectura del socket puede contener parte de una línea o varias líneas. Se reconstruyen y separan las líneas antes de interpretarlas. |
+
+## 3. Resumen de mensajes y permisos
+
+| Mensaje | Quién puede enviarlo | Quién lo recibe | Respuesta esperada |
+|---|---|---|---|
+| REGISTRO | Sensor o actuador recién conectado. | Servidor. | ACEPTADO REGISTRO; ERROR si el registro es inválido. |
+| ACEPTADO REGISTRO | Servidor. | El cliente que se registró. | Ninguna confirmación adicional. |
+| LECTURA | Sensor registrado. | Servidor. | RECIBIDO con el mismo número; ERROR si es inválida. |
+| RECIBIDO | Servidor. | Sensor. | Ninguna. Confirma lectura, no actuación. |
+| ORDEN | Servidor. | Actuador registrado. | APLICADO con el mismo número, en menos de 1 s. |
+| APLICADO | Actuador registrado. | Servidor. | Ninguna confirmación adicional. Puede seguir una nueva ORDEN. |
+| ERROR | Cualquier participante, según la especificación. | El otro extremo de su conexión. | Ninguna; termina la sesión. La implementación actual lo emite en el servidor; los ESP32 cierran directamente ante errores locales. |
+
+## 4. Detalle de cada mensaje
+
+### 4.1 REGISTRO: identificar al cliente
+
+**Envía:** sensor o actuador. **Recibe:** servidor. Debe ser el primer mensaje, dentro de 3 s desde la conexión.
+
+```text
+REGISTRO tipo=sensor, version=1
+REGISTRO tipo=actuador, version=1
+```
+
+| Parámetro | Valores | Para qué sirve |
+|---|---|---|
+| tipo | `sensor` o `actuador`. | Asignar el papel del cliente y sus permisos. |
+| version | Entero `1`. | Comprobar que el cliente usa esta versión del protocolo. |
+
+**Respuesta correcta:** `ACEPTADO REGISTRO`. Un registro incorrecto recibe `ERROR codigo=...` y se cierra. Un nuevo cliente del mismo tipo reemplaza la sesión anterior. No se puede registrar dos veces la misma conexión.
+
+### 4.2 ACEPTADO REGISTRO: habilitar el intercambio
+
+**Envía:** servidor. **Recibe:** cliente que envió REGISTRO.
+
+```text
+ACEPTADO REGISTRO
+```
+
+**Parámetros:** ninguno; `REGISTRO` es una palabra fija, no un valor configurable. **Respuesta:** ninguna. El sensor ya puede enviar lecturas. Al actuador se le envía el estado vigente, inicialmente APAGADO.
+
+### 4.3 LECTURA: enviar una adquisición
+
+**Envía:** únicamente sensor registrado. **Recibe:** servidor.
+
+```text
+LECTURA numero=42, tiempo_ms=12500, distancia_cm=15.20
+LECTURA numero=43, tiempo_ms=12600, distancia_cm=SIN_ECO
+```
+
+| Parámetro | Tipo y valores | Significado |
+|---|---|---|
+| numero | Entero de 1 a 4294967295, creciente por sesión. | Identifica la lectura y permite asociar su confirmación. |
+| tiempo_ms | Entero de 0 a 4294967295. | Reloj local del sensor al iniciar la adquisición, en milisegundos; puede desbordarse. |
+| distancia_cm | Decimal entre 0 y 400, o `SIN_ECO`. | Distancia original en centímetros. SIN_ECO indica ausencia de eco o adquisición fuera del dominio representable. |
+
+**Respuesta correcta:** `RECIBIDO numero=42` para la primera línea del ejemplo. El servidor valida y procesa la lectura antes de confirmar. Una distancia fuera de 2–30 cm es válida como mensaje, pero solicita apagado. `SIN_ECO` también demuestra actividad del sensor.
+
+El sensor intenta medir cada 100 ms. Puede tener varias lecturas pendientes; las confirmaciones deben ser crecientes y no superar el último número enviado. Si hay pendientes y pasa 1 s sin confirmaciones, desconecta y vuelve a registrarse. Los relojes de la PC y el sensor no están sincronizados: no se restan para calcular el tiempo de respuesta física.
+
+### 4.4 RECIBIDO: confirmar una lectura
+
+**Envía:** servidor. **Recibe:** únicamente sensor.
+
+```text
+RECIBIDO numero=42
+```
+
+| Parámetro | Valores | Significado |
+|---|---|---|
+| numero | Número de la LECTURA confirmada. | Confirma que se validó y procesó esa adquisición. |
+
+**Respuesta:** ninguna. No significa que el actuador haya cambiado ni debe generar otra confirmación.
+
+### 4.5 ORDEN: solicitar el estado de los LEDs
+
+**Envía:** servidor. **Recibe:** únicamente actuador registrado.
+
+```text
+ORDEN numero=81, estado=AMARILLO
+```
+
+| Parámetro | Valores | Significado |
+|---|---|---|
+| numero | Entero de 1 a 4294967295, creciente por sesión. | Identifica la orden que debe confirmar el actuador. |
+| estado | `ROJO`, `AMARILLO`, `VERDE` o `APAGADO`. | Estado completo de las salidas. Se apagan los tres LEDs y después se enciende el seleccionado, si corresponde. |
+
+**Respuesta correcta:** `APLICADO numero=81`, después de actualizar los pines y antes de 1 s desde el envío de la orden por el servidor.
+
+Se envía una orden al registrar el actuador, al cambiar el estado y como refresco cada 1 s. Existe como máximo una orden pendiente. Mientras espera su confirmación, el servidor conserva solo el último estado deseado; un apagado sustituye los estados anteriores aún no enviados. Tras confirmar, envía ese estado si difiere del confirmado.
+
+### 4.6 APLICADO: confirmar una actuación
+
+**Envía:** únicamente actuador registrado. **Recibe:** servidor.
+
+```text
+APLICADO numero=81
+```
+
+| Parámetro | Valores | Significado |
+|---|---|---|
+| numero | Exactamente el número de la ORDEN pendiente. | Confirma que se ejecutaron las escrituras de los pines. |
+
+**Respuesta:** ninguna confirmación adicional. El servidor libera la orden pendiente; puede enviar otra orden o esperar al siguiente refresco. Un número incorrecto, una confirmación sin orden pendiente o una confirmación tardía provoca cierre. Esta confirmación de software no demuestra que el LED emita luz.
+
+### 4.7 ERROR: informar el rechazo
+
+**Envía en el código actual:** servidor. **Recibe:** el cliente cuyo mensaje fue rechazado.
+
+```text
+ERROR codigo=FORMATO
+```
+
+| Parámetro | Valores | Significado |
+|---|---|---|
+| codigo | Uno de los códigos del apartado 7. | Motivo por el que no se puede continuar la sesión. |
+
+**Respuesta:** ninguna; un ERROR no genera otro ERROR. El servidor intenta enviarlo y cierra la sesión; si el cliente no lee, cierra después de 0,5 s. Los fallos de transporte y los tiempos agotados se registran y cierran directamente.
+
+## 5. Ejemplo de secuencia completa
+
+```mermaid
+sequenceDiagram
+    participant SENSOR as Cliente sensor (ESP32)
+    participant SERVIDOR as Servidor (PC, Python)
+    participant ACTUADOR as Cliente actuador (ESP32)
+    ACTUADOR->>SERVIDOR: Inicia conexión TCP
+    ACTUADOR->>SERVIDOR: REGISTRO tipo=actuador, version=1
+    SERVIDOR-->>ACTUADOR: ACEPTADO REGISTRO
+    SERVIDOR->>ACTUADOR: ORDEN numero=1, estado=APAGADO
+    ACTUADOR-->>SERVIDOR: APLICADO numero=1
+    SENSOR->>SERVIDOR: Inicia conexión TCP
+    SENSOR->>SERVIDOR: REGISTRO tipo=sensor, version=1
+    SERVIDOR-->>SENSOR: ACEPTADO REGISTRO
+    loop Tres adquisiciones válidas, separadas por 100 ms
+        SENSOR->>SERVIDOR: LECTURA numero=N, tiempo_ms=T, distancia_cm=15.20
+        SERVIDOR-->>SENSOR: RECIBIDO numero=N
+    end
+    Note over SERVIDOR: Mediana de tres lecturas: amarillo
+    SERVIDOR->>ACTUADOR: ORDEN numero=2, estado=AMARILLO
+    Note over ACTUADOR: Actualiza los pines
+    ACTUADOR-->>SERVIDOR: APLICADO numero=2
+    Note over SERVIDOR,ACTUADOR: Refrescar estado cada 1 s; solo una orden pendiente
+```
+
+`N` y `T` son marcadores explicativos: en mensajes reales se sustituyen por enteros. Los clientes pueden conectarse en cualquier orden. Si el sensor ya produjo una clasificación vigente, el actuador recibe ese estado al registrarse.
+
+## 6. Control y fallos
+
+| Condición | Comportamiento |
+|---|---|
+| 2 ≤ d ≤ 10 cm | Rojo fijo. |
+| 10 < d ≤ 20 cm | Amarillo fijo. |
+| 20 < d ≤ 30 cm | Verde fijo. |
+| d < 2, d > 30 o SIN_ECO | Solicitar apagado y vaciar filtro. |
+| Menos de tres lecturas válidas tras inicio/reconexión/error | Apagado mientras se llena el filtro. |
+| Cinco segundos sin LECTURA válida en formato | Cerrar sensor, vaciar filtro y solicitar apagado. |
+| Cierre TCP detectado del sensor | Lo anterior inmediatamente. |
+| Un segundo sin APLICADO correspondiente | Cerrar actuador y registrar fallo. |
+| Tres segundos sin ORDEN válida en el actuador | Apagado local aunque TCP parezca conectado. |
+| WiFi/TCP desconectado en el actuador | Apagado local inmediato. |
+| Nuevo registro de un rol ocupado | Cerrar sesión anterior y reemplazarla. |
+
+Filtro: mediana móvil de tres lecturas **dentro de 2–30 cm**. Una distancia fuera de ese intervalo es aceptada por el protocolo, pero fuerza apagado. SIN_ECO demuestra actividad y reinicia el plazo de cinco segundos. La primera lectura tiene el mismo plazo desde el registro.
+
+Los clientes reintentan la conectividad cada dos segundos y repiten el registro. Cada intento TCP usa una IPv4 literal y límite de 250 ms. Vaciar búferes, números y confirmaciones al desconectar. Una nueva sesión del sensor invalida los datos anteriores.
+
+Los plazos se verifican en cada vuelta del programa, sujetos a resolución del bucle y del sistema operativo. El apagado solicitado puede esperar a una orden pendiente (hasta un segundo). El temporizador local protege ante pérdida del servidor.
+
+## 7. Errores
+
+| Código | Motivo |
+|---|---|
+| FORMATO | Sintaxis, codificación o controles incorrectos. |
+| LONGITUD | Mensaje que no cabe en 128 bytes. |
+| COMANDO | Comando desconocido. |
+| FALTANTE | Falta campo obligatorio. |
+| ARGUMENTO | Campo desconocido. |
+| DUPLICADO | Campo repetido. |
+| VALOR | Número o estado fuera del dominio. |
+| VERSION | Versión distinta de 1. |
+| SIN_REGISTRO | Mensaje antes del registro. |
+| YA_REGISTRADO | Segundo registro en la misma conexión. |
+| ROL | Mensaje incompatible con el rol. |
+| SECUENCIA | Número de lectura repetido o decreciente. |
+| CONFIRMACION | No existe orden pendiente o su número no coincide. |
+| CONFIRMACION_TARDIA | Confirmación fuera del plazo. |
+
+El servidor intenta entregar el error y luego cierra; si el cliente no lee, cierra tras 0,5 s. Errores de transporte y tiempos agotados se registran y cierran directamente. Los firmwares apagan/reconectan ante mensajes incompatibles o errores del servidor. Prototipo para red local, sin autenticación ni cifrado de aplicación.
+
+## 8. Verificación
+
+Consultar [pruebas automáticas](pruebas/), [guion Ncat](pruebas/verificar_ncat.py), [instrucciones](README.md) y [estado de validación](documentacion/VALIDACION.md). Una prueba propuesta no se presenta como ejecutada.
+
+Wireshark puede usar `tcp.port == 5000`. Los intervalos entre paquetes o entre ORDEN y APLICADO no sustituyen la medición física sensor → servidor → LED.

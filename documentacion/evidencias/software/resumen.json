@@ -1,0 +1,79 @@
+{
+  "tipo": "SOFTWARE_SIN_PLACAS",
+  "python": "3.11.7 (tags/v3.11.7:fa7a6f2, Dec  4 2023, 19:24:49) [MSC v.1937 64 bit (AMD64)]",
+  "resultados": [
+    {
+      "prueba": "pruebas_python",
+      "inicio_utc": "2026-10-12T00:01:02.221837+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "pruebas",
+        "-v"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "prueba": "pruebas_unity",
+      "inicio_utc": "2026-10-12T00:01:18.985474+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\python.exe",
+        "-m",
+        "platformio",
+        "test",
+        "-e",
+        "native"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "prueba": "compilacion_sensor",
+      "inicio_utc": "2026-10-12T00:01:26.379875+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\python.exe",
+        "-m",
+        "platformio",
+        "run",
+        "--project-dir",
+        "sensor"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "prueba": "compilacion_actuador",
+      "inicio_utc": "2026-10-12T00:01:47.775166+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\python.exe",
+        "-m",
+        "platformio",
+        "run",
+        "--project-dir",
+        "actuador"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "prueba": "pruebas_ncat",
+      "inicio_utc": "2026-10-12T00:02:01.896594+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\python.exe",
+        "-B",
+        "pruebas/verificar_ncat.py",
+        "--registro",
+        "C:\\Users\\Maria\\OneDrive\\Documentos\\PlatformIO\\Projects\\Proyecto2\\IoT_practica_2\\documentacion\\evidencias\\software\\sesiones_ncat.jsonl",
+        "--ncat",
+        "C:\\Users\\Maria\\OneDrive\\Documentos\\PlatformIO\\Projects\\Proyecto2\\IoT_practica_2\\.herramientas\\ncat\\ncat.exe"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    }
+  ]
+}

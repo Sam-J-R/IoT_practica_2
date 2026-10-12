@@ -1,0 +1,10 @@
+Ncat: Version 7.991 ( https://nmap.org/ncat )
+APROBADO: registro, decimales, tres rangos y confirmaciones correlacionadas.
+APROBADO: SIN_ECO apaga y mantiene actividad.
+APROBADO: sensor inactivo cerrado tras aproximadamente 5.000 s reales.
+APROBADO: reconexión, nuevo registro y secuencia reiniciada.
+APROBADO: reemplazo cierra la sesión anterior y conserva la nueva.
+APROBADO: mensaje sin registro y orden sin confirmación cierran la conexión.
+APROBADO: confirmación con número distinto rechazada.
+APROBADO: secuencia repetida y línea excesiva rechazadas.
+Todas las verificaciones Ncat finalizaron; no son pruebas físicas de los ESP32.

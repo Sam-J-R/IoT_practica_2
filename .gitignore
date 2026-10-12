@@ -1,0 +1,9 @@
+**/.pio/
+**/__pycache__/
+*.pyc
+.venv/
+**/ConfiguracionRed.h
+registros/
+work/
+.herramientas/
+*.code-workspace

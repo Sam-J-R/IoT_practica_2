@@ -1,0 +1,135 @@
+{"fecha_utc": "2026-10-12T00:02:02.201329+00:00", "tiempo_monotonico": 2285617.031, "evento": "SERVIDOR_INICIADO", "puerto": 57899}
+{"fecha_utc": "2026-10-12T00:02:02.253025+00:00", "tiempo_monotonico": 2285617.093, "evento": "CONEXION", "sesion": 1, "direccion": "('127.0.0.1', 57900)"}
+{"fecha_utc": "2026-10-12T00:02:02.254024+00:00", "tiempo_monotonico": 2285617.093, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "REGISTRO tipo=actuador, version=1"}
+{"fecha_utc": "2026-10-12T00:02:02.254024+00:00", "tiempo_monotonico": 2285617.093, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:02.254024+00:00", "tiempo_monotonico": 2285617.093, "evento": "REGISTRO", "sesion": 1, "rol": "actuador"}
+{"fecha_utc": "2026-10-12T00:02:02.254024+00:00", "tiempo_monotonico": 2285617.093, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=1, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.255026+00:00", "tiempo_monotonico": 2285617.093, "evento": "ORDEN", "sesion": 1, "numero": 1, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.255026+00:00", "tiempo_monotonico": 2285617.093, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=1"}
+{"fecha_utc": "2026-10-12T00:02:02.255026+00:00", "tiempo_monotonico": 2285617.093, "evento": "APLICADO", "sesion": 1, "numero": 1, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:02.285021+00:00", "tiempo_monotonico": 2285617.125, "evento": "CONEXION", "sesion": 2, "direccion": "('127.0.0.1', 57903)"}
+{"fecha_utc": "2026-10-12T00:02:02.306027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "REGISTRO tipo=sensor, version=1"}
+{"fecha_utc": "2026-10-12T00:02:02.306027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:02.306027+00:00", "tiempo_monotonico": 2285617.14, "evento": "REGISTRO", "sesion": 2, "rol": "sensor"}
+{"fecha_utc": "2026-10-12T00:02:02.306027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=1, tiempo_ms=100, distancia_cm=5.25"}
+{"fecha_utc": "2026-10-12T00:02:02.306027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=1"}
+{"fecha_utc": "2026-10-12T00:02:02.306027+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 1, "tiempo_sensor_ms": 100, "distancia_cm": 5.25, "filtrada_cm": null, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=2, tiempo_ms=200, distancia_cm=5.25"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=2"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 2, "tiempo_sensor_ms": 200, "distancia_cm": 5.25, "filtrada_cm": null, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=3, tiempo_ms=300, distancia_cm=5.25"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=3"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 3, "tiempo_sensor_ms": 300, "distancia_cm": 5.25, "filtrada_cm": 5.25, "estado": "ROJO"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=2, estado=ROJO"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "ORDEN", "sesion": 1, "numero": 2, "estado": "ROJO"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=2"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "APLICADO", "sesion": 1, "numero": 2, "estado": "ROJO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=4, tiempo_ms=400, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=4"}
+{"fecha_utc": "2026-10-12T00:02:02.307027+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 4, "tiempo_sensor_ms": 400, "distancia_cm": 15.2, "filtrada_cm": 5.25, "estado": "ROJO"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=5, tiempo_ms=500, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=5"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 5, "tiempo_sensor_ms": 500, "distancia_cm": 15.2, "filtrada_cm": 15.2, "estado": "AMARILLO"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=3, estado=AMARILLO"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "ORDEN", "sesion": 1, "numero": 3, "estado": "AMARILLO"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=3"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "APLICADO", "sesion": 1, "numero": 3, "estado": "AMARILLO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=6, tiempo_ms=600, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=6"}
+{"fecha_utc": "2026-10-12T00:02:02.308028+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 6, "tiempo_sensor_ms": 600, "distancia_cm": 15.2, "filtrada_cm": 15.2, "estado": "AMARILLO"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=7, tiempo_ms=700, distancia_cm=25.10"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=7"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 7, "tiempo_sensor_ms": 700, "distancia_cm": 25.1, "filtrada_cm": 15.2, "estado": "AMARILLO"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=8, tiempo_ms=800, distancia_cm=25.10"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=8"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 8, "tiempo_sensor_ms": 800, "distancia_cm": 25.1, "filtrada_cm": 25.1, "estado": "VERDE"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=4, estado=VERDE"}
+{"fecha_utc": "2026-10-12T00:02:02.309030+00:00", "tiempo_monotonico": 2285617.14, "evento": "ORDEN", "sesion": 1, "numero": 4, "estado": "VERDE"}
+{"fecha_utc": "2026-10-12T00:02:02.310032+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=4"}
+{"fecha_utc": "2026-10-12T00:02:02.310032+00:00", "tiempo_monotonico": 2285617.14, "evento": "APLICADO", "sesion": 1, "numero": 4, "estado": "VERDE", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:02.310032+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=9, tiempo_ms=900, distancia_cm=25.10"}
+{"fecha_utc": "2026-10-12T00:02:02.310032+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=9"}
+{"fecha_utc": "2026-10-12T00:02:02.310032+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 9, "tiempo_sensor_ms": 900, "distancia_cm": 25.1, "filtrada_cm": 25.1, "estado": "VERDE"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 2, "mensaje": "LECTURA numero=10, tiempo_ms=1000, distancia_cm=SIN_ECO"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 2, "mensaje": "RECIBIDO numero=10"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "LECTURA", "sesion": 2, "numero": 10, "tiempo_sensor_ms": 1000, "distancia_cm": null, "filtrada_cm": null, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=5, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "ORDEN", "sesion": 1, "numero": 5, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=5"}
+{"fecha_utc": "2026-10-12T00:02:02.311030+00:00", "tiempo_monotonico": 2285617.14, "evento": "APLICADO", "sesion": 1, "numero": 5, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:03.307328+00:00", "tiempo_monotonico": 2285618.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=6, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:03.307328+00:00", "tiempo_monotonico": 2285618.14, "evento": "ORDEN", "sesion": 1, "numero": 6, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:03.308303+00:00", "tiempo_monotonico": 2285618.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=6"}
+{"fecha_utc": "2026-10-12T00:02:03.308303+00:00", "tiempo_monotonico": 2285618.14, "evento": "APLICADO", "sesion": 1, "numero": 6, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:04.309060+00:00", "tiempo_monotonico": 2285619.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=7, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:04.309060+00:00", "tiempo_monotonico": 2285619.14, "evento": "ORDEN", "sesion": 1, "numero": 7, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:04.309060+00:00", "tiempo_monotonico": 2285619.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=7"}
+{"fecha_utc": "2026-10-12T00:02:04.309060+00:00", "tiempo_monotonico": 2285619.14, "evento": "APLICADO", "sesion": 1, "numero": 7, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:05.301666+00:00", "tiempo_monotonico": 2285620.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=8, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:05.301666+00:00", "tiempo_monotonico": 2285620.14, "evento": "ORDEN", "sesion": 1, "numero": 8, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:05.301666+00:00", "tiempo_monotonico": 2285620.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=8"}
+{"fecha_utc": "2026-10-12T00:02:05.301666+00:00", "tiempo_monotonico": 2285620.14, "evento": "APLICADO", "sesion": 1, "numero": 8, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:06.302414+00:00", "tiempo_monotonico": 2285621.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=9, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:06.302414+00:00", "tiempo_monotonico": 2285621.14, "evento": "ORDEN", "sesion": 1, "numero": 9, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:06.302414+00:00", "tiempo_monotonico": 2285621.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=9"}
+{"fecha_utc": "2026-10-12T00:02:06.303413+00:00", "tiempo_monotonico": 2285621.14, "evento": "APLICADO", "sesion": 1, "numero": 9, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:07.310483+00:00", "tiempo_monotonico": 2285622.14, "evento": "DESCONEXION", "sesion": 2, "rol": "sensor", "motivo": "SENSOR_INACTIVO"}
+{"fecha_utc": "2026-10-12T00:02:07.310483+00:00", "tiempo_monotonico": 2285622.14, "evento": "MENSAJE_ENVIADO", "sesion": 1, "mensaje": "ORDEN numero=10, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:07.311488+00:00", "tiempo_monotonico": 2285622.14, "evento": "ORDEN", "sesion": 1, "numero": 10, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:07.312489+00:00", "tiempo_monotonico": 2285622.14, "evento": "MENSAJE_RECIBIDO", "sesion": 1, "mensaje": "APLICADO numero=10"}
+{"fecha_utc": "2026-10-12T00:02:07.312489+00:00", "tiempo_monotonico": 2285622.14, "evento": "APLICADO", "sesion": 1, "numero": 10, "estado": "APAGADO", "latencia_confirmacion_ms": 0.0}
+{"fecha_utc": "2026-10-12T00:02:07.357325+00:00", "tiempo_monotonico": 2285622.187, "evento": "CONEXION", "sesion": 3, "direccion": "('127.0.0.1', 57908)"}
+{"fecha_utc": "2026-10-12T00:02:07.359323+00:00", "tiempo_monotonico": 2285622.187, "evento": "MENSAJE_RECIBIDO", "sesion": 3, "mensaje": "REGISTRO tipo=sensor, version=1"}
+{"fecha_utc": "2026-10-12T00:02:07.359323+00:00", "tiempo_monotonico": 2285622.187, "evento": "MENSAJE_ENVIADO", "sesion": 3, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:07.359323+00:00", "tiempo_monotonico": 2285622.187, "evento": "REGISTRO", "sesion": 3, "rol": "sensor"}
+{"fecha_utc": "2026-10-12T00:02:07.360325+00:00", "tiempo_monotonico": 2285622.203, "evento": "MENSAJE_RECIBIDO", "sesion": 3, "mensaje": "LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:07.360325+00:00", "tiempo_monotonico": 2285622.203, "evento": "MENSAJE_ENVIADO", "sesion": 3, "mensaje": "RECIBIDO numero=1"}
+{"fecha_utc": "2026-10-12T00:02:07.360325+00:00", "tiempo_monotonico": 2285622.203, "evento": "LECTURA", "sesion": 3, "numero": 1, "tiempo_sensor_ms": 0, "distancia_cm": 15.2, "filtrada_cm": null, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:07.420811+00:00", "tiempo_monotonico": 2285622.25, "evento": "CONEXION", "sesion": 4, "direccion": "('127.0.0.1', 57911)"}
+{"fecha_utc": "2026-10-12T00:02:07.433768+00:00", "tiempo_monotonico": 2285622.265, "evento": "MENSAJE_RECIBIDO", "sesion": 4, "mensaje": "REGISTRO tipo=sensor, version=1"}
+{"fecha_utc": "2026-10-12T00:02:07.433768+00:00", "tiempo_monotonico": 2285622.265, "evento": "DESCONEXION", "sesion": 3, "rol": "sensor", "motivo": "REEMPLAZO"}
+{"fecha_utc": "2026-10-12T00:02:07.433768+00:00", "tiempo_monotonico": 2285622.265, "evento": "MENSAJE_ENVIADO", "sesion": 4, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:07.433768+00:00", "tiempo_monotonico": 2285622.265, "evento": "REGISTRO", "sesion": 4, "rol": "sensor"}
+{"fecha_utc": "2026-10-12T00:02:07.434757+00:00", "tiempo_monotonico": 2285622.265, "evento": "MENSAJE_RECIBIDO", "sesion": 4, "mensaje": "LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:07.434757+00:00", "tiempo_monotonico": 2285622.265, "evento": "MENSAJE_ENVIADO", "sesion": 4, "mensaje": "RECIBIDO numero=1"}
+{"fecha_utc": "2026-10-12T00:02:07.434757+00:00", "tiempo_monotonico": 2285622.265, "evento": "LECTURA", "sesion": 4, "numero": 1, "tiempo_sensor_ms": 0, "distancia_cm": 15.2, "filtrada_cm": null, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:07.470763+00:00", "tiempo_monotonico": 2285622.312, "evento": "CONEXION", "sesion": 5, "direccion": "('127.0.0.1', 57914)"}
+{"fecha_utc": "2026-10-12T00:02:07.470763+00:00", "tiempo_monotonico": 2285622.312, "evento": "MENSAJE_RECIBIDO", "sesion": 5, "mensaje": "LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:07.470763+00:00", "tiempo_monotonico": 2285622.312, "evento": "ERROR_PROTOCOLO", "sesion": 5, "codigo": "SIN_REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:07.471762+00:00", "tiempo_monotonico": 2285622.312, "evento": "MENSAJE_ENVIADO", "sesion": 5, "mensaje": "ERROR codigo=SIN_REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:07.471762+00:00", "tiempo_monotonico": 2285622.312, "evento": "DESCONEXION", "sesion": 5, "rol": "", "motivo": "ERROR_ENVIADO"}
+{"fecha_utc": "2026-10-12T00:02:07.505272+00:00", "tiempo_monotonico": 2285622.343, "evento": "CONEXION", "sesion": 6, "direccion": "('127.0.0.1', 57917)"}
+{"fecha_utc": "2026-10-12T00:02:07.523557+00:00", "tiempo_monotonico": 2285622.359, "evento": "MENSAJE_RECIBIDO", "sesion": 6, "mensaje": "REGISTRO tipo=actuador, version=1"}
+{"fecha_utc": "2026-10-12T00:02:07.524555+00:00", "tiempo_monotonico": 2285622.359, "evento": "DESCONEXION", "sesion": 1, "rol": "actuador", "motivo": "REEMPLAZO"}
+{"fecha_utc": "2026-10-12T00:02:07.524555+00:00", "tiempo_monotonico": 2285622.359, "evento": "MENSAJE_ENVIADO", "sesion": 6, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:07.524555+00:00", "tiempo_monotonico": 2285622.359, "evento": "REGISTRO", "sesion": 6, "rol": "actuador"}
+{"fecha_utc": "2026-10-12T00:02:07.524555+00:00", "tiempo_monotonico": 2285622.359, "evento": "MENSAJE_ENVIADO", "sesion": 6, "mensaje": "ORDEN numero=1, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:07.524555+00:00", "tiempo_monotonico": 2285622.359, "evento": "ORDEN", "sesion": 6, "numero": 1, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:08.524426+00:00", "tiempo_monotonico": 2285623.359, "evento": "DESCONEXION", "sesion": 6, "rol": "actuador", "motivo": "CONFIRMACION_TIEMPO_AGOTADO"}
+{"fecha_utc": "2026-10-12T00:02:08.565777+00:00", "tiempo_monotonico": 2285623.406, "evento": "CONEXION", "sesion": 7, "direccion": "('127.0.0.1', 57921)"}
+{"fecha_utc": "2026-10-12T00:02:08.586775+00:00", "tiempo_monotonico": 2285623.421, "evento": "MENSAJE_RECIBIDO", "sesion": 7, "mensaje": "REGISTRO tipo=actuador, version=1"}
+{"fecha_utc": "2026-10-12T00:02:08.586775+00:00", "tiempo_monotonico": 2285623.421, "evento": "MENSAJE_ENVIADO", "sesion": 7, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:08.586775+00:00", "tiempo_monotonico": 2285623.421, "evento": "REGISTRO", "sesion": 7, "rol": "actuador"}
+{"fecha_utc": "2026-10-12T00:02:08.587774+00:00", "tiempo_monotonico": 2285623.421, "evento": "MENSAJE_ENVIADO", "sesion": 7, "mensaje": "ORDEN numero=1, estado=APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:08.587774+00:00", "tiempo_monotonico": 2285623.421, "evento": "ORDEN", "sesion": 7, "numero": 1, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:08.587774+00:00", "tiempo_monotonico": 2285623.421, "evento": "MENSAJE_RECIBIDO", "sesion": 7, "mensaje": "APLICADO numero=2"}
+{"fecha_utc": "2026-10-12T00:02:08.587774+00:00", "tiempo_monotonico": 2285623.421, "evento": "ERROR_PROTOCOLO", "sesion": 7, "codigo": "CONFIRMACION"}
+{"fecha_utc": "2026-10-12T00:02:08.587774+00:00", "tiempo_monotonico": 2285623.421, "evento": "MENSAJE_ENVIADO", "sesion": 7, "mensaje": "ERROR codigo=CONFIRMACION"}
+{"fecha_utc": "2026-10-12T00:02:08.588776+00:00", "tiempo_monotonico": 2285623.421, "evento": "DESCONEXION", "sesion": 7, "rol": "actuador", "motivo": "ERROR_ENVIADO"}
+{"fecha_utc": "2026-10-12T00:02:08.632306+00:00", "tiempo_monotonico": 2285623.468, "evento": "CONEXION", "sesion": 8, "direccion": "('127.0.0.1', 57924)"}
+{"fecha_utc": "2026-10-12T00:02:08.634307+00:00", "tiempo_monotonico": 2285623.468, "evento": "MENSAJE_RECIBIDO", "sesion": 8, "mensaje": "REGISTRO tipo=sensor, version=1"}
+{"fecha_utc": "2026-10-12T00:02:08.634307+00:00", "tiempo_monotonico": 2285623.468, "evento": "DESCONEXION", "sesion": 4, "rol": "sensor", "motivo": "REEMPLAZO"}
+{"fecha_utc": "2026-10-12T00:02:08.634307+00:00", "tiempo_monotonico": 2285623.468, "evento": "MENSAJE_ENVIADO", "sesion": 8, "mensaje": "ACEPTADO REGISTRO"}
+{"fecha_utc": "2026-10-12T00:02:08.634307+00:00", "tiempo_monotonico": 2285623.468, "evento": "REGISTRO", "sesion": 8, "rol": "sensor"}
+{"fecha_utc": "2026-10-12T00:02:08.635308+00:00", "tiempo_monotonico": 2285623.468, "evento": "MENSAJE_RECIBIDO", "sesion": 8, "mensaje": "LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:08.635308+00:00", "tiempo_monotonico": 2285623.468, "evento": "MENSAJE_ENVIADO", "sesion": 8, "mensaje": "RECIBIDO numero=1"}
+{"fecha_utc": "2026-10-12T00:02:08.635308+00:00", "tiempo_monotonico": 2285623.468, "evento": "LECTURA", "sesion": 8, "numero": 1, "tiempo_sensor_ms": 0, "distancia_cm": 15.2, "filtrada_cm": null, "estado": "APAGADO"}
+{"fecha_utc": "2026-10-12T00:02:08.636311+00:00", "tiempo_monotonico": 2285623.468, "evento": "MENSAJE_RECIBIDO", "sesion": 8, "mensaje": "LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20"}
+{"fecha_utc": "2026-10-12T00:02:08.636311+00:00", "tiempo_monotonico": 2285623.468, "evento": "ERROR_PROTOCOLO", "sesion": 8, "codigo": "SECUENCIA"}
+{"fecha_utc": "2026-10-12T00:02:08.636311+00:00", "tiempo_monotonico": 2285623.468, "evento": "MENSAJE_ENVIADO", "sesion": 8, "mensaje": "ERROR codigo=SECUENCIA"}
+{"fecha_utc": "2026-10-12T00:02:08.637306+00:00", "tiempo_monotonico": 2285623.468, "evento": "DESCONEXION", "sesion": 8, "rol": "sensor", "motivo": "ERROR_ENVIADO"}
+{"fecha_utc": "2026-10-12T00:02:08.675306+00:00", "tiempo_monotonico": 2285623.515, "evento": "CONEXION", "sesion": 9, "direccion": "('127.0.0.1', 57927)"}
+{"fecha_utc": "2026-10-12T00:02:08.675306+00:00", "tiempo_monotonico": 2285623.515, "evento": "ERROR_PROTOCOLO", "sesion": 9, "codigo": "LONGITUD"}
+{"fecha_utc": "2026-10-12T00:02:08.675306+00:00", "tiempo_monotonico": 2285623.515, "evento": "MENSAJE_ENVIADO", "sesion": 9, "mensaje": "ERROR codigo=LONGITUD"}
+{"fecha_utc": "2026-10-12T00:02:08.675306+00:00", "tiempo_monotonico": 2285623.515, "evento": "DESCONEXION", "sesion": 9, "rol": "", "motivo": "ERROR_ENVIADO"}
+{"fecha_utc": "2026-10-12T00:02:08.691833+00:00", "tiempo_monotonico": 2285623.531, "evento": "SERVIDOR_DETENIDO"}

@@ -1,0 +1,13 @@
+{
+  "fuente": "https://nmap.org/dist/nmap-7.991-setup.exe",
+  "version": "7.991",
+  "tipo": "Instalacion local extraida del paquete oficial",
+  "ruta": ".herramientas/ncat/ncat.exe",
+  "fecha_utc": "2026-10-11T23:25:56.4083986Z",
+  "firma_instalador": "Valid",
+  "firma_ncat": "Valid",
+  "firmante": "CN=Nmap Software LLC, O=Nmap Software LLC, L=Beaverton, S=Oregon, C=US, SERIALNUMBER=6397588, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.2=Delaware, OID.1.3.6.1.4.1.311.60.2.1.3=US",
+  "huella_certificado": "0629C303220B256580AABA536A1A3C060B87E3A2",
+  "sha256_instalador": "93BFD37BDB31A7ADFD932BEB5DBCE06025DA691D01A0939E806EA704F7367657",
+  "sha256_ncat": "56F544457DD08F88E9D711474B9E7FDA61362D84555EBB2A496E92A410FC861C"
+}
