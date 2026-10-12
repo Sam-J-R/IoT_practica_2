@@ -1,23 +1,24 @@
 """Gramática compartida y reconstrucción de líneas de un flujo TCP."""
 from math import isfinite
+from typing import Any, Iterator, Union
 
-MAXIMO_MENSAJE = 128  # Incluye LF o CRLF, en bytes.
-MAXIMO_ENTERO = 4294967295
+MAXIMO_MENSAJE: int = 128  # Incluye LF o CRLF, en bytes.
+MAXIMO_ENTERO: int = 4294967295
 
 
 class ErrorProtocolo(ValueError):
-    def __init__(self, codigo):
+    def __init__(self, codigo: str) -> None:
         super().__init__(codigo)
-        self.codigo = codigo
+        self.codigo: str = codigo
 
 
 class ReceptorLineas:
     """Búfer acotado, también para líneas sin terminador."""
 
-    def __init__(self):
-        self.pendiente = bytearray()
+    def __init__(self) -> None:
+        self.pendiente: bytearray = bytearray()
 
-    def recibir(self, datos):
+    def recibir(self, datos: Union[bytes, bytearray]) -> Iterator[str]:
         # Generador: procesa las líneas anteriores aunque una posterior falle.
         for byte in datos:
             if byte > 127 or (byte < 32 and byte not in (10, 13)):
@@ -39,15 +40,15 @@ class ReceptorLineas:
 
 
 class Mensaje:
-    def __init__(self, comando, argumentos):
-        self.comando = comando
-        self.argumentos = argumentos
+    def __init__(self, comando: str, argumentos: dict[str, Any]) -> None:
+        self.comando: str = comando
+        self.argumentos: dict[str, Any] = argumentos
 
 
 class ProtocoloAplicacion:
     """Valida sintaxis y dominios; el servidor valida permisos y secuencia."""
 
-    CAMPOS = {
+    CAMPOS: dict[str, list[str]] = {
         "REGISTRO": ["tipo", "version"],
         "LECTURA": ["numero", "tiempo_ms", "distancia_cm"],
         "ORDEN": ["numero", "estado"],
@@ -57,7 +58,7 @@ class ProtocoloAplicacion:
     }
 
     @staticmethod
-    def entero(texto):
+    def entero(texto: str) -> int:
         if not texto or not texto.isascii() or not texto.isdigit():
             raise ErrorProtocolo("VALOR")
         valor = int(texto)
@@ -66,7 +67,7 @@ class ProtocoloAplicacion:
         return valor
 
     @classmethod
-    def interpretar(cls, linea):
+    def interpretar(cls, linea: str) -> Mensaje:
         if linea == "ACEPTADO REGISTRO":
             return Mensaje("ACEPTADO", {})
         comando, separador, texto = linea.partition(" ")
@@ -74,7 +75,7 @@ class ProtocoloAplicacion:
             raise ErrorProtocolo("COMANDO")
         if not separador or not texto:
             raise ErrorProtocolo("FORMATO")
-        argumentos = {}
+        argumentos: dict[str, Any] = {}
         for campo in texto.split(","):
             if campo.startswith(" "):
                 campo = campo[1:]
@@ -132,7 +133,7 @@ class ProtocoloAplicacion:
         return Mensaje(comando, argumentos)
 
     @staticmethod
-    def codificar(linea):
+    def codificar(linea: str) -> bytes:
         datos = (linea + "\n").encode("ascii")
         if len(datos) > MAXIMO_MENSAJE:
             raise ErrorProtocolo("LONGITUD")

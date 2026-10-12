@@ -67,8 +67,8 @@ La comparación utiliza el informe con el código anterior y su retroalimentaci�
 | Aspecto | Práctica 1 | Código actual y revisión |
 |---|---|---|
 | Organización | Un ESP32 con clases de sensor e indicador; clasificación local. | Dos ESP32 con clases simples y coordinación en `loop()`; la clasificación está exclusivamente en Python. |
-| Cantidad de archivos | Separación en cabeceras y fuentes, además de herramientas ajenas a la práctica. | Se conservan archivos con responsabilidades claras; la configuración de la raíz sirve solo para Unity. Configuración WiFi única; parámetros junto al control; registros junto al servidor. Sin BMAD. |
-| C++ comprensible | Clases y función pura; identificadores en dos idiomas. | Clases pequeñas, tipos básicos y `String`; se retiraron matrices de caracteres, conversiones especiales y el analizador mediante punteros. Identificadores propios en español. |
+| Cantidad de archivos | Separación en cabeceras y fuentes, además de herramientas ajenas a la práctica. | Se conservan archivos con responsabilidades claras; la configuración de la raíz sirve solo para Unity. Clases de hardware con `.h` y `.cpp` separados. Configuración WiFi única; parámetros junto al control; registros junto al servidor. Sin BMAD. |
+| C++ comprensible | Clases y función pura; identificadores en dos idiomas. | Clases modulares (`.h`/`.cpp`), tipos básicos y `String`; rutas de inclusión sin anidamiento (`-I ../comun`). Identificadores propios en español. |
 | Rangos | Cerca comenzaba en 0 cm, aunque el trabajo declarado empezaba en 2 cm. | Se conserva la decisión corregida: [2,10], (10,20] y (20,30]; fuera de 2–30 o SIN_ECO apaga. |
 | Conversión | Factor 0.01723 frente a una justificación de 343 m/s. | Factor ya acordado 0.01715 cm/µs y espera máxima de eco de 30 ms. La calibración real sigue pendiente. |
 | Ruido en fronteras | Se recomendó mediana o histéresis. | Se conserva la mediana de tres lecturas válidas consecutivas, sin añadir histéresis. |
@@ -96,6 +96,6 @@ La simplicidad del código no elimina POO ni los controles de seguridad. La conf
 
 La validación anterior con `assert` se sustituyó por **Unity real con PlatformIO**, sin retirar las comprobaciones de hardware simulado y transporte. Las pruebas de Python siguen verificando los rangos y el servidor. Las evidencias de la versión anterior se apartaron en `work/antes_de_unity/`; la tabla de este documento y el resumen JSON corresponden al código actual.
 
-Cambios de implementación: pines y cantidades `int`, distancias `float`, banderas `bool`, tiempos/secuencias `unsigned long`, mensajes `String`; clases Python comunes, colores como textos, mediana mediante lista y comunicación con `select.select` sin máscaras de eventos. Los mensajes, los rangos y los plazos del protocolo se conservan.
+Cambios de implementación: pines y cantidades `int`, distancias `float`, banderas `bool`, tiempos/secuencias `unsigned long`, mensajes `String`; separación de interfaz (`.h`) e implementación (`.cpp`) en clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) con banderas de inclusión modular (`-I ../comun`); clases Python con anotaciones de tipo (`type hints`), colores mediante enumeración tipada (`StrEnum`), mediana mediante lista y comunicación con `select.select` sin máscaras de eventos. Los mensajes, los rangos y los plazos del protocolo se conservan.
 
 `String` usa memoria dinámica interna. Se limitan las líneas a 128 bytes y los envíos pendientes a 512 bytes, y se reserva espacio para las dos cadenas del transporte. La estabilidad con placas reales debe verificarse con el ensayo de 15 minutos; compilar y probar en PC no la demuestra.

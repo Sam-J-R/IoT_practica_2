@@ -1,8 +1,10 @@
 // Pruebas Unity en PC: no requieren ESP32 ni un sensor conectado.
 #include <unity.h>
-#include "../../../comun/ProtocoloAplicacion.h"
-#include "../../../sensor/include/SensorUltrasonico.h"
-#include "../../../actuador/include/IndicadorLeds.h"
+#include "ProtocoloAplicacion.h"
+#include "SensorUltrasonico.h"
+#include "IndicadorLeds.h"
+#include "../../sensor/src/SensorUltrasonico.cpp"
+#include "../../actuador/src/IndicadorLeds.cpp"
 
 int nivelesSimulados[40] = {};
 int escriturasSimuladas[128][2] = {};

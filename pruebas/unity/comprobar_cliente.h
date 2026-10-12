@@ -22,8 +22,10 @@ std::string entradaSimulada;
 std::string salidaSimulada;
 
 #ifdef PRUEBA_SENSOR
+#include "../../sensor/src/SensorUltrasonico.cpp"
 #include "../../sensor/src/main.cpp"
 #else
+#include "../../actuador/src/IndicadorLeds.cpp"
 #include "../../actuador/src/main.cpp"
 #endif
 

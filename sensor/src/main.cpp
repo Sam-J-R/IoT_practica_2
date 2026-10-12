@@ -1,13 +1,13 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#if __has_include("../../comun/ConfiguracionRed.h")
-#include "../../comun/ConfiguracionRed.h"
+#if __has_include("ConfiguracionRed.h")
+#include "ConfiguracionRed.h"
 #else
-#include "../../comun/ConfiguracionRedEjemplo.h"
+#include "ConfiguracionRedEjemplo.h"
 #endif
 #include "SensorUltrasonico.h"
-#include "../../comun/ClienteTcp.h"
-#include "../../comun/ProtocoloAplicacion.h"
+#include "ClienteTcp.h"
+#include "ProtocoloAplicacion.h"
 
 const unsigned long intervaloLecturaMs = 100;
 SensorUltrasonico sensor(14, 27);

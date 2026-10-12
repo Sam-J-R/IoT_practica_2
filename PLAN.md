@@ -29,12 +29,16 @@ IoT_practica_2/
 ├── sensor/                     # Proyecto PlatformIO del sensor
 │   ├── platformio.ini
 │   ├── include/
+│   │   └── SensorUltrasonico.h
 │   ├── src/
+│   │   ├── SensorUltrasonico.cpp
 │   │   └── main.cpp
 ├── actuador/                   # Proyecto PlatformIO del actuador
 │   ├── platformio.ini
 │   ├── include/
+│   │   └── IndicadorLeds.h
 │   ├── src/
+│   │   ├── IndicadorLeds.cpp
 │   │   └── main.cpp
 ├── comun/                      # TCP, analizador y configuración compartida
 ├── servidor/                   # Programa Python; no es un proyecto PlatformIO
@@ -190,7 +194,7 @@ La entrega estará completa cuando la implementación cumpla el protocolo, super
 
 ## 8. Simplificación y guía de lectura
 
-Se mantienen las decisiones de control, el protocolo y todos los tiempos. Los ESP32 usan tipos básicos y `String` para construir y leer mensajes. Se retiraron matrices de caracteres, tipos de ancho fijo y conversiones especiales del código propio de las placas. Python usa clases comunes, textos para los colores y una lista de tres distancias.
+Se mantienen las decisiones de control, el protocolo y todos los tiempos. Los ESP32 usan tipos básicos y `String` para construir y leer mensajes, separando cabeceras (`.h`) e implementación (`.cpp`) en las clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) e incluyendo `comun/` de forma modular con banderas `-I ../comun`. Python usa clases comunes con anotaciones de tipo (`type hints`), una enumeración tipada (`StrEnum`) para los colores y una lista de tres distancias.
 
 Las pruebas C++ se ejecutan con Unity mediante `pio test -e native` desde la raíz, usando el `platformio.ini` dedicado a pruebas de PC. Los proyectos de las dos placas siguen siendo `sensor/` y `actuador/`. Las pruebas del servidor y los rangos se mantienen en Python, donde está la clasificación.
 

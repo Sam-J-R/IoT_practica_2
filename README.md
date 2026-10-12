@@ -8,11 +8,11 @@ Empieza por los primeros tres archivos de esta tabla. No necesitas estudiar los 
 
 | Si quieres entender o cambiar… | Abre… | Busca… |
 |---|---|---|
-| Los rangos y la elección del color | [servidor/control.py](servidor/control.py) | `clasificar()`; `procesar()` aplica la mediana. |
+| Los rangos y la elección del color | [servidor/control.py](servidor/control.py) | `clasificar()`; `procesar()` aplica la mediana; `EstadoLed(StrEnum)`. |
 | El funcionamiento del ESP32 sensor | [sensor/src/main.cpp](sensor/src/main.cpp) | `setup()` prepara; `loop()` recibe confirmaciones y envía lecturas. |
 | El funcionamiento del ESP32 actuador | [actuador/src/main.cpp](actuador/src/main.cpp) | `recibirMensaje()` aplica la orden; `loop()` revisa conexión y apagado. |
-| La medición ultrasónica | [sensor/include/SensorUltrasonico.h](sensor/include/SensorUltrasonico.h) | `medir()`: disparo, duración del eco y conversión a cm. |
-| El encendido de los LEDs | [actuador/include/IndicadorLeds.h](actuador/include/IndicadorLeds.h) | `aplicar()`: apagar todos y encender el solicitado. |
+| La medición ultrasónica | [sensor/include/SensorUltrasonico.h](sensor/include/SensorUltrasonico.h) y [.cpp](sensor/src/SensorUltrasonico.cpp) | Declaración y método `medir()`: disparo, eco y conversión a cm. |
+| El encendido de los LEDs | [actuador/include/IndicadorLeds.h](actuador/include/IndicadorLeds.h) y [.cpp](actuador/src/IndicadorLeds.cpp) | Declaración y método `aplicar()`: apagar todos y encender el solicitado. |
 | Cómo conectar ambos ESP32 | [comun/ConfiguracionRedEjemplo.h](comun/ConfiguracionRedEjemplo.h) | Nombre de red, clave, IP y puerto; copiar según el apartado 5. |
 | La conexión y reconexión WiFi/TCP | [comun/ClienteTcp.h](comun/ClienteTcp.h) | `actualizar()`, `enviar()` y `recibirMensaje()`. |
 | Cómo separar los campos de un mensaje en C++ | [comun/ProtocoloAplicacion.h](comun/ProtocoloAplicacion.h) | `interpretar()` y `obtener()`. |
@@ -30,7 +30,7 @@ Ejemplo: el objeto permanece a **15 cm**.
 2. Forma un texto como `LECTURA numero=1, tiempo_ms=100, distancia_cm=15.00` y lo envía.
 3. El servidor, en `_procesar()`, reconoce LECTURA, procesa la distancia y responde `RECIBIDO numero=1`.
 4. `ControlDistancia.procesar()` espera tres lecturas válidas. Las ordena y toma la del medio: la mediana. Con 15, 15 y 15 resulta 15.
-5. `clasificar(15)` devuelve el texto `AMARILLO`. El servidor envía `ORDEN numero=2, estado=AMARILLO` cuando no hay otra orden pendiente.
+5. `clasificar(15)` devuelve el valor `EstadoLed.AMARILLO` (`"AMARILLO"`). El servidor envía `ORDEN numero=2, estado=AMARILLO` cuando no hay otra orden pendiente.
 6. El actuador llama a `indicador.aplicar("AMARILLO")` y después envía `APLICADO numero=2`.
 
 Los números de los ejemplos son ilustrativos. El registro y la orden inicial de apagado se explican en el [protocolo](protocolo.md), con sus diagramas.
@@ -48,9 +48,9 @@ En el C++ propio se utilizan `int` para pines y cantidades, `float` para centím
 
 `String(numero)` convierte un número en texto; `String(distanciaCm, 2)` lo escribe con dos decimales. `indexOf()` busca una posición, `substring()` extrae una parte y `+` une textos. `millis()` devuelve milisegundos; `ahora - ultimoTiempo` permite comprobar un plazo sin detener el programa con `delay()`.
 
-Una clase agrupa datos y acciones relacionados. Se conservan clases porque la práctica exige orientación a objetos. Por ejemplo, `SensorUltrasonico sensor(14, 27)` crea un sensor con esos pines, y `sensor.medir(distanciaCm)` pide una medición.
+Una clase agrupa datos y acciones relacionados. Las clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) separan su declaración en `.h` de su implementación en `.cpp`, siguiendo las buenas prácticas de programación en C++, e incluyen `comun/` de forma modular mediante banderas de compilación (`-I ../comun`).
 
-El servidor usa textos para los colores y una lista para las tres distancias. No utiliza enumeraciones, clases de datos automáticas ni expresiones regulares. El archivo principal conserva los datos de cada conexión y los plazos para gestionar ambos clientes.
+El servidor usa una enumeración tipada (`StrEnum`) para los colores (`EstadoLed`) garantizando consistencia y validación estricta, y anotaciones de tipo (`type hints`) en todos sus módulos de Python para facilitar la comprensión y el análisis estático.
 
 ## 4. Dónde están y cómo ejecutar las pruebas Unity
 

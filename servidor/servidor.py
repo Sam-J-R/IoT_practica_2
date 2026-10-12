@@ -7,6 +7,7 @@ import logging
 import select
 import socket
 import time
+from typing import Any, Callable, Optional, Union
 
 from .control import ConfiguracionServidor, ControlDistancia, EstadoLed
 from .protocolo import ErrorProtocolo, ProtocoloAplicacion, ReceptorLineas
@@ -15,22 +16,26 @@ from .protocolo import ErrorProtocolo, ProtocoloAplicacion, ReceptorLineas
 class RegistroPruebas:
     """Muestra eventos en consola y conserva su evidencia original en JSONL."""
 
-    def __init__(self, ruta=None):
+    def __init__(self, ruta: Optional[Union[Path, str]] = None) -> None:
         self.archivo = None
         if ruta:
-            ruta = Path(ruta)
-            ruta.parent.mkdir(parents=True, exist_ok=True)
-            self.archivo = ruta.open("a", encoding="utf-8")
+            ruta_path = Path(ruta)
+            ruta_path.parent.mkdir(parents=True, exist_ok=True)
+            self.archivo = ruta_path.open("a", encoding="utf-8")
 
-    def registrar(self, evento, **datos):
-        fila = {"fecha_utc": datetime.now(timezone.utc).isoformat(),
-                "tiempo_monotonico": time.monotonic(), "evento": evento, **datos}
+    def registrar(self, evento: str, **datos: Any) -> None:
+        fila = {
+            "fecha_utc": datetime.now(timezone.utc).isoformat(),
+            "tiempo_monotonico": time.monotonic(),
+            "evento": evento,
+            **datos,
+        }
         logging.info("%s %s", evento, datos)
         if self.archivo:
             self.archivo.write(json.dumps(fila, ensure_ascii=False, allow_nan=False) + "\n")
             self.archivo.flush()
 
-    def cerrar(self):
+    def cerrar(self) -> None:
         if self.archivo:
             self.archivo.close()
             self.archivo = None
@@ -38,45 +43,55 @@ class RegistroPruebas:
 
 class SesionCliente:
     """Datos de un cliente: su socket, su rol y sus mensajes pendientes."""
-    def __init__(self, conexion, direccion, identificador, creada):
-        self.conexion = conexion
-        self.direccion = direccion
-        self.identificador = identificador
-        self.creada = creada
-        self.rol = ""
-        self.receptor = ReceptorLineas()
-        self.salida = bytearray()
-        self.ultima_lectura = 0
-        self.numero_lectura = 0
-        self.numero_orden = 0
-        self.numero_pendiente = 0  # Cero significa que no se espera confirmación.
-        self.estado_pendiente = "APAGADO"
-        self.inicio_orden = 0
-        self.estado_confirmado = None
-        self.ultimo_envio = 0
-        self.cerrada = False
-        self.cerrar_tras_envio = False
-        self.limite_cierre = 0
+
+    def __init__(
+        self, conexion: socket.socket, direccion: Any, identificador: int, creada: float
+    ) -> None:
+        self.conexion: socket.socket = conexion
+        self.direccion: Any = direccion
+        self.identificador: int = identificador
+        self.creada: float = creada
+        self.rol: str = ""
+        self.receptor: ReceptorLineas = ReceptorLineas()
+        self.salida: bytearray = bytearray()
+        self.ultima_lectura: float = 0.0
+        self.numero_lectura: int = 0
+        self.numero_orden: int = 0
+        self.numero_pendiente: int = 0  # Cero significa que no se espera confirmación.
+        self.estado_pendiente: Union[EstadoLed, str] = EstadoLed.APAGADO
+        self.inicio_orden: float = 0.0
+        self.estado_confirmado: Optional[Union[EstadoLed, str]] = None
+        self.ultimo_envio: float = 0.0
+        self.cerrada: bool = False
+        self.cerrar_tras_envio: bool = False
+        self.limite_cierre: float = 0.0
 
 
 class ServidorTcp:
     """Solo este bucle modifica roles, filtro y órdenes pendientes."""
 
-    def __init__(self, configuracion=None, registro=None, reloj=time.monotonic):
-        self.configuracion = configuracion or ConfiguracionServidor()
-        self.registro = registro or RegistroPruebas()
-        self.reloj = reloj
-        self.escucha = None
-        self.sesiones = {}
-        self.roles = {}
-        self.control = ControlDistancia(self.configuracion)
-        self.siguiente_sesion = 0
+    def __init__(
+        self,
+        configuracion: Optional[ConfiguracionServidor] = None,
+        registro: Optional[RegistroPruebas] = None,
+        reloj: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.configuracion: ConfiguracionServidor = configuracion or ConfiguracionServidor()
+        self.registro: RegistroPruebas = registro or RegistroPruebas()
+        self.reloj: Callable[[], float] = reloj
+        self.escucha: Optional[socket.socket] = None
+        self.sesiones: dict[socket.socket, SesionCliente] = {}
+        self.roles: dict[str, SesionCliente] = {}
+        self.control: ControlDistancia = ControlDistancia(self.configuracion)
+        self.siguiente_sesion: int = 0
 
     @property
-    def puerto(self):
+    def puerto(self) -> int:
+        if self.escucha is None:
+            raise RuntimeError("Servidor no iniciado")
         return self.escucha.getsockname()[1]
 
-    def iniciar(self):
+    def iniciar(self) -> None:
         conexion = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             conexion.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -89,7 +104,9 @@ class ServidorTcp:
         self.escucha = conexion
         self.registro.registrar("SERVIDOR_INICIADO", puerto=self.puerto)
 
-    def _aceptar(self):
+    def _aceptar(self) -> None:
+        if self.escucha is None:
+            return
         conexion, direccion = self.escucha.accept()
         if len(self.sesiones) >= self.configuracion.maximo_clientes:
             conexion.close()
@@ -102,11 +119,11 @@ class ServidorTcp:
         self.sesiones[conexion] = sesion
         self.registro.registrar("CONEXION", sesion=sesion.identificador, direccion=str(direccion))
 
-    def _cerrar_si_error_enviado(self, sesion):
+    def _cerrar_si_error_enviado(self, sesion: SesionCliente) -> None:
         if sesion.cerrar_tras_envio and not sesion.salida and not sesion.cerrada:
             self._cerrar_sesion(sesion, "ERROR_ENVIADO")
 
-    def _enviar(self, sesion, linea):
+    def _enviar(self, sesion: SesionCliente, linea: str) -> None:
         if sesion.cerrada or sesion.cerrar_tras_envio:
             return
         datos = ProtocoloAplicacion.codificar(linea)
@@ -117,7 +134,7 @@ class ServidorTcp:
         self._cerrar_si_error_enviado(sesion)
         self.registro.registrar("MENSAJE_ENVIADO", sesion=sesion.identificador, mensaje=linea)
 
-    def _rechazar(self, sesion, codigo):
+    def _rechazar(self, sesion: SesionCliente, codigo: str) -> None:
         self.registro.registrar("ERROR_PROTOCOLO", sesion=sesion.identificador, codigo=codigo)
         # Descartar órdenes aún no enviadas antes de entregar el error final.
         sesion.salida.clear()
@@ -130,7 +147,7 @@ class ServidorTcp:
                 self._solicitar_estado()
             self._cerrar_si_error_enviado(sesion)
 
-    def _cerrar_sesion(self, sesion, motivo):
+    def _cerrar_sesion(self, sesion: SesionCliente, motivo: str) -> None:
         if sesion.cerrada:
             return
         sesion.cerrada = True
@@ -144,7 +161,7 @@ class ServidorTcp:
         self.registro.registrar("DESCONEXION", sesion=sesion.identificador,
                                 rol=sesion.rol, motivo=motivo)
 
-    def _solicitar_estado(self, forzar=False):
+    def _solicitar_estado(self, forzar: bool = False) -> None:
         actuador = self.roles.get("actuador")
         if actuador is None or actuador.cerrada or actuador.cerrar_tras_envio or actuador.numero_pendiente != 0:
             return
@@ -157,9 +174,9 @@ class ServidorTcp:
         actuador.ultimo_envio = self.reloj()
         self._enviar(actuador, f"ORDEN numero={actuador.numero_orden}, estado={self.control.estado}")
         self.registro.registrar("ORDEN", sesion=actuador.identificador,
-                                numero=actuador.numero_orden, estado=self.control.estado)
+                                numero=actuador.numero_orden, estado=str(self.control.estado))
 
-    def _procesar(self, sesion, linea):
+    def _procesar(self, sesion: SesionCliente, linea: str) -> None:
         mensaje = ProtocoloAplicacion.interpretar(linea)
         argumentos = mensaje.argumentos
         self.registro.registrar("MENSAJE_RECIBIDO", sesion=sesion.identificador, mensaje=linea)
@@ -190,7 +207,7 @@ class ServidorTcp:
             self._enviar(sesion, f"RECIBIDO numero={numero}")
             self.registro.registrar("LECTURA", sesion=sesion.identificador, numero=numero,
                 tiempo_sensor_ms=argumentos["tiempo_ms"], distancia_cm=argumentos["distancia_cm"],
-                filtrada_cm=self.control.distancia_filtrada, estado=estado)
+                filtrada_cm=self.control.distancia_filtrada, estado=str(estado))
             self._solicitar_estado()
         elif mensaje.comando == "APLICADO" and sesion.rol == "actuador":
             if sesion.numero_pendiente == 0 or argumentos["numero"] != sesion.numero_pendiente:
@@ -199,7 +216,7 @@ class ServidorTcp:
                 raise ErrorProtocolo("CONFIRMACION_TARDIA")
             sesion.estado_confirmado = sesion.estado_pendiente
             self.registro.registrar("APLICADO", sesion=sesion.identificador,
-                numero=sesion.numero_pendiente, estado=sesion.estado_pendiente,
+                numero=sesion.numero_pendiente, estado=str(sesion.estado_pendiente),
                 latencia_confirmacion_ms=(self.reloj() - sesion.inicio_orden) * 1000)
             sesion.numero_pendiente = 0
             self._solicitar_estado()
@@ -209,7 +226,7 @@ class ServidorTcp:
         else:
             raise ErrorProtocolo("ROL")
 
-    def _recibir(self, sesion):
+    def _recibir(self, sesion: SesionCliente) -> None:
         datos = sesion.conexion.recv(1024)
         if not datos:
             self._cerrar_sesion(sesion, "CIERRE_TCP")
@@ -222,7 +239,7 @@ class ServidorTcp:
         except ErrorProtocolo as error:
             self._rechazar(sesion, error.codigo)
 
-    def _transmitir(self, sesion):
+    def _transmitir(self, sesion: SesionCliente) -> None:
         enviados = sesion.conexion.send(sesion.salida)
         if enviados == 0:
             self._cerrar_sesion(sesion, "ENVIO_CERRADO")
@@ -230,7 +247,7 @@ class ServidorTcp:
         del sesion.salida[:enviados]
         self._cerrar_si_error_enviado(sesion)
 
-    def _temporizadores(self):
+    def _temporizadores(self) -> None:
         ahora = self.reloj()
         c = self.configuracion
         for sesion in list(self.sesiones.values()):
@@ -247,8 +264,10 @@ class ServidorTcp:
         if actuador and ahora - actuador.ultimo_envio >= c.intervalo_refresco:
             self._solicitar_estado(forzar=True)
 
-    def ejecutar_paso(self, espera=0.05):
+    def ejecutar_paso(self, espera: float = 0.05) -> None:
         """Una vuelta: revisar plazos, recibir mensajes y enviar respuestas."""
+        if self.escucha is None:
+            return
         self._temporizadores()
         para_leer = [self.escucha]
         para_enviar = []
@@ -267,7 +286,7 @@ class ServidorTcp:
             self._atender(conexion, recibir=False)
         self._temporizadores()
 
-    def _atender(self, conexion, recibir):
+    def _atender(self, conexion: socket.socket, recibir: bool) -> None:
         # Un cliente pudo cerrar o ser reemplazado durante esta misma vuelta.
         sesion = self.sesiones.get(conexion)
         if sesion is None:
@@ -282,7 +301,7 @@ class ServidorTcp:
         except OSError as error:
             self._cerrar_sesion(sesion, "SOCKET_" + str(error.errno))
 
-    def cerrar(self):
+    def cerrar(self) -> None:
         # Primero actuador: evita encolar nuevas órdenes durante el cierre.
         actuador = self.roles.get("actuador")
         if actuador:
@@ -297,7 +316,7 @@ class ServidorTcp:
         self.registro.cerrar()
 
 
-def principal():
+def principal() -> None:
     argumentos = argparse.ArgumentParser(description="Servidor TCP de control de distancia")
     argumentos.add_argument("--direccion", default="0.0.0.0")
     argumentos.add_argument("--puerto", type=int, default=5000)

@@ -23,6 +23,6 @@ test_linea_valida_antes_de_error_se_procesa (test_protocolo.PruebasProtocolo.tes
 test_rechaza_codificacion_y_controles (test_protocolo.PruebasProtocolo.test_rechaza_codificacion_y_controles) ... ok
 
 ----------------------------------------------------------------------
-Ran 23 tests in 16.306s
+Ran 23 tests in 16.391s
 
 OK
