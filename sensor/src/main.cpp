@@ -14,7 +14,7 @@ SensorUltrasonico sensor(14, 27);
 unsigned long ultimaLectura = 0;
 unsigned long numeroLectura = 0;
 unsigned long ultimaRecibida = 0;
-unsigned long ultimaConfirmacion = 0;
+unsigned long inicioEsperaConfirmacion = 0;
 bool estabaRegistrado = false;
 
 ClienteTcp conexion(nombreRed, claveRed, direccionServidor, puertoServidor,
@@ -22,6 +22,7 @@ ClienteTcp conexion(nombreRed, claveRed, direccionServidor, puertoServidor,
 
 void limpiarSesion() {
     numeroLectura = ultimaRecibida = 0;
+    inicioEsperaConfirmacion = 0;
     estabaRegistrado = false;
 }
 
@@ -36,7 +37,7 @@ void recibirMensaje(String linea) {
         return;
     }
     ultimaRecibida = numero;
-    ultimaConfirmacion = millis();
+    inicioEsperaConfirmacion = millis();
 }
 
 void setup() {
@@ -49,7 +50,6 @@ void setup() {
 
 void loop() {
     conexion.actualizar();
-    unsigned long ahora = millis();
     if (!conexion.registrado()) {
         limpiarSesion();
         return;
@@ -60,12 +60,12 @@ void loop() {
         limpiarSesion();
         return;
     }
+    unsigned long ahora = millis();
     if (!estabaRegistrado) {
         estabaRegistrado = true;
-        ultimaConfirmacion = ahora;
         ultimaLectura = ahora - intervaloLecturaMs;
     }
-    if (numeroLectura > ultimaRecibida && ahora - ultimaConfirmacion >= 1000) {
+    if (numeroLectura > ultimaRecibida && ahora - inicioEsperaConfirmacion >= 1000) {
         conexion.desconectar("LECTURA_SIN_CONFIRMACION");
         return;
     }
@@ -75,6 +75,9 @@ void loop() {
         conexion.desconectar("REINICIAR_SECUENCIA");
         return;
     }
+    // Si todo estaba confirmado, esta lectura inicia una nueva espera.
+    // El tiempo sin lecturas pendientes no consume el plazo de un segundo.
+    if (numeroLectura == ultimaRecibida) inicioEsperaConfirmacion = ahora;
     ++numeroLectura;
     float distanciaCm = 0;
     bool hayEco = sensor.medir(distanciaCm);

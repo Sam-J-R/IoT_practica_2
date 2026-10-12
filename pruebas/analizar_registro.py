@@ -28,7 +28,7 @@ def principal():
         "confirmaciones": len(latencias),
         "latencia_confirmacion_media_ms": mean(latencias) if latencias else None,
         "latencia_confirmacion_maxima_ms": max(latencias) if latencias else None,
-        "advertencia": "Frecuencia de recepción en PC y confirmaciones de software; no tiempo físico de respuesta."},
+        "advertencia": "Frecuencia recibida incluye SIN_ECO. Confirmación desde ORDEN encolada, incluida su cola; no tiempo físico de respuesta."},
         ensure_ascii=False, indent=2))
 
 

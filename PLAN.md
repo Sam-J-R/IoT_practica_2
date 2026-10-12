@@ -194,10 +194,12 @@ La entrega estará completa cuando la implementación cumpla el protocolo, super
 
 ## 8. Simplificación y guía de lectura
 
-Se mantienen las decisiones de control, el protocolo y todos los tiempos. Los ESP32 usan tipos básicos y `String` para construir y leer mensajes, separando cabeceras (`.h`) e implementación (`.cpp`) en las clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) e incluyendo `comun/` de forma modular con banderas `-I ../comun`. Python usa clases comunes con anotaciones de tipo (`type hints`), una enumeración tipada (`StrEnum`) para los colores y una lista de tres distancias.
+Se mantienen las decisiones de control, los mensajes y todos los tiempos. Los ESP32 usan tipos básicos y `String` para construir y leer mensajes, separando cabeceras (`.h`) e implementación (`.cpp`) en las clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) e incluyendo `comun/` de forma modular con banderas `-I ../comun`. Python 3.11 o posterior usa clases con anotaciones de tipo, `StrEnum` para los colores y una lista de tres distancias.
 
 Las pruebas C++ se ejecutan con Unity mediante `pio test -e native` desde la raíz, usando el `platformio.ini` dedicado a pruebas de PC. Los proyectos de las dos placas siguen siendo `sensor/` y `actuador/`. Las pruebas del servidor y los rangos se mantienen en Python, donde está la clasificación.
 
 El README empieza con una tabla para encontrar cada responsabilidad y un ejemplo del recorrido de una lectura. No se deben modificar ni estudiar primero los simuladores de `pruebas/dobles/` para entender el prototipo.
 
 Consultar [validación y comparación con la práctica 1](documentacion/VALIDACION.md). Las pruebas físicas y la revisión del informe siguen pendientes.
+
+La revisión corrigió la espera de confirmación del sensor después de una pausa, dividió las pruebas Unity en escenarios independientes y comprobó el apagado desde un color activo por desconexión e inactividad. El validador distingue aprobación, fallo y ejecución incompleta; busca la instalación habitual de PlatformIO en Windows y registra huellas del código probado. En la PC, el segundo para confirmar ORDEN incluye la cola de salida: se aclaró ese instante y el significado de los registros sin añadir temporizadores nuevos.

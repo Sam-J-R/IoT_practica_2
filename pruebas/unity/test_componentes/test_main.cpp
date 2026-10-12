@@ -3,8 +3,8 @@
 #include "ProtocoloAplicacion.h"
 #include "SensorUltrasonico.h"
 #include "IndicadorLeds.h"
-#include "../../sensor/src/SensorUltrasonico.cpp"
-#include "../../actuador/src/IndicadorLeds.cpp"
+#include "../../../sensor/src/SensorUltrasonico.cpp"
+#include "../../../actuador/src/IndicadorLeds.cpp"
 
 int nivelesSimulados[40] = {};
 int escriturasSimuladas[128][2] = {};
@@ -36,10 +36,7 @@ void probarOrdenConParametros() {
     TEST_ASSERT_TRUE(mensaje.obtener("numero") == "81");
     TEST_ASSERT_TRUE(mensaje.interpretar("ORDEN estado=ROJO,numero=2"));
     TEST_ASSERT_TRUE(mensaje.obtener("numero") == "2");
-}
-
-void probarConfirmacion() {
-    ProtocoloAplicacion mensaje;
+    // Reutilizar el analizador no debe conservar campos del mensaje anterior.
     mensaje.interpretar("ORDEN numero=1, estado=VERDE");
     TEST_ASSERT_TRUE(mensaje.interpretar("RECIBIDO numero=3"));
     TEST_ASSERT_EQUAL_INT(1, mensaje.cantidad);
@@ -78,10 +75,23 @@ void probarApagadoAntesDelCambio() {
     indicador.aplicar("VERDE");
     cantidadEscrituras = 0;
     indicador.aplicar("ROJO");
-    TEST_ASSERT_EQUAL_INT(4, cantidadEscrituras);
-    for (int i = 0; i < 3; i++) TEST_ASSERT_EQUAL_INT(LOW, escriturasSimuladas[i][1]);
-    TEST_ASSERT_EQUAL_INT(33, escriturasSimuladas[3][0]);
-    TEST_ASSERT_EQUAL_INT(HIGH, escriturasSimuladas[3][1]);
+    // Reconstruir la transición: nunca debe haber dos colores activos.
+    int rojo = LOW;
+    int amarillo = LOW;
+    int verde = HIGH;
+    bool pasoPorApagado = false;
+    for (int i = 0; i < cantidadEscrituras; i++) {
+        int pin = escriturasSimuladas[i][0];
+        int nivel = escriturasSimuladas[i][1];
+        if (pin == 33) rojo = nivel;
+        if (pin == 25) amarillo = nivel;
+        if (pin == 26) verde = nivel;
+        TEST_ASSERT_TRUE(rojo + amarillo + verde <= 1);
+        if (rojo + amarillo + verde == 0) pasoPorApagado = true;
+    }
+    TEST_ASSERT_TRUE(pasoPorApagado);
+    TEST_ASSERT_EQUAL_INT(HIGH, rojo);
+    TEST_ASSERT_EQUAL_INT(LOW, amarillo + verde);
 }
 
 void probarApagadoYEstadoIncorrecto() {
@@ -113,7 +123,6 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(probarNumerosDelProtocolo);
     RUN_TEST(probarOrdenConParametros);
-    RUN_TEST(probarConfirmacion);
     RUN_TEST(probarMensajesIncorrectos);
     RUN_TEST(probarColoresExclusivos);
     RUN_TEST(probarApagadoAntesDelCambio);

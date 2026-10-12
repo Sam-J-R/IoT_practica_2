@@ -13,7 +13,7 @@ class PruebasProtocolo(unittest.TestCase):
             "LECTURA numero=43,tiempo_ms=12600,distancia_cm=SIN_ECO")
         self.assertIsNone(mensaje.argumentos["distancia_cm"])
 
-    def test_catalogo_y_respuestas(self):
+        # Los ejemplos del catálogo se verifican aquí, sin otra prueba repetida.
         for linea in ("REGISTRO tipo=sensor, version=1", "REGISTRO tipo=actuador, version=1",
                       "ACEPTADO REGISTRO", "RECIBIDO numero=1", "APLICADO numero=1",
                       "ORDEN numero=1, estado=ROJO", "ERROR codigo=FORMATO"):

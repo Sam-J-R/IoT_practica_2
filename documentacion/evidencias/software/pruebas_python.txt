@@ -3,6 +3,7 @@ test_espera_tres_lecturas_y_rechaza_un_pico (test_control.PruebasControl.test_es
 test_fronteras_y_datos_no_confiables (test_control.PruebasControl.test_fronteras_y_datos_no_confiables) ... ok
 test_confirmacion_agotada_y_reconexion (test_integracion.PruebasIntegracion.test_confirmacion_agotada_y_reconexion) ... ok
 test_confirmacion_incorrecta_se_rechaza (test_integracion.PruebasIntegracion.test_confirmacion_incorrecta_se_rechaza) ... ok
+test_desconexion_del_sensor_solicita_apagado (test_integracion.PruebasIntegracion.test_desconexion_del_sensor_solicita_apagado) ... ok
 test_error_del_cliente_no_produce_otro_error (test_integracion.PruebasIntegracion.test_error_del_cliente_no_produce_otro_error) ... ok
 test_estado_mas_reciente_sin_cola_de_ordenes (test_integracion.PruebasIntegracion.test_estado_mas_reciente_sin_cola_de_ordenes) ... ok
 test_fragmentos_tcp_reales (test_integracion.PruebasIntegracion.test_fragmentos_tcp_reales) ... ok
@@ -14,7 +15,6 @@ test_refresco_independiente_de_nuevas_lecturas (test_integracion.PruebasIntegrac
 test_registro_con_plazo_y_linea_excesiva (test_integracion.PruebasIntegracion.test_registro_con_plazo_y_linea_excesiva) ... ok
 test_roles_y_secuencia (test_integracion.PruebasIntegracion.test_roles_y_secuencia) ... ok
 test_sin_eco_demuestra_actividad (test_integracion.PruebasIntegracion.test_sin_eco_demuestra_actividad) ... ok
-test_catalogo_y_respuestas (test_protocolo.PruebasProtocolo.test_catalogo_y_respuestas) ... ok
 test_datos_rechazados (test_protocolo.PruebasProtocolo.test_datos_rechazados) ... ok
 test_distancias_decimales_y_sin_eco (test_protocolo.PruebasProtocolo.test_distancias_decimales_y_sin_eco) ... ok
 test_fragmentacion_concatenacion_y_crlf (test_protocolo.PruebasProtocolo.test_fragmentacion_concatenacion_y_crlf) ... ok
@@ -23,6 +23,6 @@ test_linea_valida_antes_de_error_se_procesa (test_protocolo.PruebasProtocolo.tes
 test_rechaza_codificacion_y_controles (test_protocolo.PruebasProtocolo.test_rechaza_codificacion_y_controles) ... ok
 
 ----------------------------------------------------------------------
-Ran 23 tests in 16.391s
+Ran 23 tests in 22.594s
 
 OK

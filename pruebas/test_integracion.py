@@ -93,17 +93,47 @@ class PruebasIntegracion(unittest.TestCase):
         self.assertEqual(self.leer(actuador), [f"ORDEN numero={orden + 1}, estado=APAGADO"])
 
     def test_inactividad_exactamente_cinco_segundos(self):
+        actuador = self.registrar("actuador")
         sensor = self.registrar("sensor")
-        self.lectura(sensor, 1, "SIN_ECO")
-        self.ahora += 4.99
+        for numero in range(1, 4):
+            self.lectura(sensor, numero, 5)
+        self.assertEqual(self.leer(actuador), ["ORDEN numero=2, estado=ROJO"])
+        self.enviar(actuador, "APLICADO numero=2")
+        # Confirmar los refrescos para que solo venza la actividad del sensor.
+        for numero in range(3, 7):
+            self.ahora += 1.0
+            self.procesar_red()
+            self.assertEqual(self.leer(actuador), [f"ORDEN numero={numero}, estado=ROJO"])
+            self.enviar(actuador, f"APLICADO numero={numero}")
+        self.ahora += 0.99
         self.procesar_red()
         self.assertIn("sensor", self.servidor.roles)
+        self.assertEqual(self.servidor.control.estado, EstadoLed.ROJO)
         self.ahora += 0.01
         self.procesar_red()
         self.assertNotIn("sensor", self.servidor.roles)
         self.assertEqual(self.servidor.control.estado, EstadoLed.APAGADO)
+        self.assertIsNone(self.servidor.control.distancia_filtrada)
+        self.assertEqual(self.leer(actuador), ["ORDEN numero=7, estado=APAGADO"])
+        self.enviar(actuador, "APLICADO numero=7")
+        self.assertEqual(self.servidor.roles["actuador"].estado_confirmado, EstadoLed.APAGADO)
         self.assertTrue(any(datos.get("motivo") == "SENSOR_INACTIVO"
                             for _, datos in self.registro.eventos))
+
+    def test_desconexion_del_sensor_solicita_apagado(self):
+        actuador = self.registrar("actuador")
+        sensor = self.registrar("sensor")
+        for numero in range(1, 4):
+            self.lectura(sensor, numero, 5)
+        self.assertEqual(self.leer(actuador), ["ORDEN numero=2, estado=ROJO"])
+        self.enviar(actuador, "APLICADO numero=2")
+        sensor.close()
+        self.procesar_red()
+        self.assertNotIn("sensor", self.servidor.roles)
+        self.assertIsNone(self.servidor.control.distancia_filtrada)
+        self.assertEqual(self.leer(actuador), ["ORDEN numero=3, estado=APAGADO"])
+        self.enviar(actuador, "APLICADO numero=3")
+        self.assertEqual(self.servidor.roles["actuador"].estado_confirmado, EstadoLed.APAGADO)
 
     def test_sin_eco_demuestra_actividad(self):
         sensor = self.registrar("sensor")
@@ -179,6 +209,13 @@ class PruebasIntegracion(unittest.TestCase):
         self.lectura(sensor, 1, 15)
         self.enviar(sensor, "LECTURA numero=1, tiempo_ms=0, distancia_cm=15")
         self.assertEqual(self.leer(sensor), ["ERROR codigo=SECUENCIA"])
+        for rol, mensaje in (("sensor", "APLICADO numero=1"),
+                ("actuador", "LECTURA numero=1, tiempo_ms=0, distancia_cm=15")):
+            with self.subTest(rol=rol):
+                cliente = self.registrar(rol)
+                self.enviar(cliente, mensaje)
+                self.assertEqual(self.leer(cliente), ["ERROR codigo=ROL"])
+                self.assertNotIn(rol, self.servidor.roles)
 
     def test_error_del_cliente_no_produce_otro_error(self):
         actuador = self.registrar("actuador")

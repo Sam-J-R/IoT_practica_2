@@ -1,241 +1,378 @@
-# Protocolo de aplicación — versión 1
+# Protocolo de aplicación — Práctica 2
 
-Este documento explica quién envía cada mensaje, quién lo recibe, qué significa cada parámetro y qué respuesta se espera. **La lógica, los rangos y los plazos establecidos se conservan.**
+Especificación del protocolo de texto entre el cliente sensor, el cliente actuador y el servidor TCP en Python. Se recupera la organización del documento inicial; los mensajes y el comportamiento corresponden al código actual, versión 1.
 
-## 1. Participantes y recorrido de la información
+## 1. Visión general
 
-| Participante | Papel | Responsabilidad |
-|---|---|---|
-| Cliente sensor: ESP32 + HC-SR04 | Inicia una conexión TCP hacia la PC. | Medir y enviar distancias sin filtrar; recibir confirmaciones de lectura. |
-| Cliente actuador: ESP32 + tres LEDs | Inicia otra conexión TCP hacia la PC. | Ejecutar órdenes y confirmar la actualización de los pines. |
-| Servidor: PC con Python | Acepta ambas conexiones en el puerto 5000. | Validar, filtrar y clasificar distancias; enviar órdenes y comprobar su confirmación. |
+El sensor mide y envía distancias. El servidor valida, filtra y clasifica. El actuador recibe el color elegido y actualiza los tres LEDs.
 
-Los dos clientes se comunican con el servidor. La decisión del color se realiza en la PC. Las flechas del diagrama representan mensajes; ambas conexiones TCP son bidireccionales.
+| Elemento | Valor |
+|---|---|
+| Transporte | TCP sobre IP y WiFi (IEEE 802.11). |
+| Servidor | PC con Python; IPv4 configurable, por ejemplo `192.168.0.102`; puerto 5000. |
+| Cliente sensor | ESP32 + HC-SR04. |
+| Cliente actuador | ESP32 + LEDs rojo, amarillo y verde. |
+| Quién inicia las conexiones | Cada ESP32 inicia su propia conexión hacia la PC. |
+| Identificación del cliente | Mediante REGISTRO, sin depender de la IP que asigne la red. |
+| Versión | `version=1` en el registro. |
 
-```mermaid
-flowchart LR
-    subgraph RED["Red WiFi — IEEE 802.11"]
-        SENSOR["Cliente sensor<br/>ESP32 + HC-SR04"]
-        SERVIDOR["Servidor TCP<br/>PC — Python<br/>Filtro y clasificación"]
-        ACTUADOR["Cliente actuador<br/>ESP32 + LEDs rojo, amarillo y verde"]
-        SENSOR -->|"REGISTRO / LECTURA"| SERVIDOR
-        SERVIDOR -->|"ACEPTADO / RECIBIDO / ERROR"| SENSOR
-        SERVIDOR -->|"ACEPTADO / ORDEN / ERROR"| ACTUADOR
-        ACTUADOR -->|"REGISTRO / APLICADO"| SERVIDOR
-    end
-```
-
-La pila utilizada es: **protocolo de aplicación → TCP → IP → WiFi**. No se necesita acceso a Internet para ejecutar el sistema.
-
-## 2. Cómo se escribe un mensaje
-
-Cada mensaje es una línea de texto ASCII terminada en salto de línea:
+Ambas conexiones TCP son bidireccionales. No se necesita Internet para ejecutar el sistema.
 
 ```text
-COMANDO parametro=valor, parametro=valor\n
+Protocolo propio: REGISTRO / LECTURA / ORDEN y sus respuestas
+TCP
+IP
+IEEE 802.11
 ```
 
-| Regla | Significado |
+## 2. Convenciones de formato
+
+- Codificación ASCII; cada mensaje es una línea terminada en LF (`\n`). Se acepta también CRLF (`\r\n`).
+- Máximo **128 bytes**, incluido el terminador.
+- Estructura: `COMANDO parametro=valor, parametro=valor`.
+- Comandos en mayúsculas y parámetros en minúsculas; se distinguen mayúsculas y minúsculas.
+- Un espacio entre comando y parámetros. El emisor usa coma y espacio; el receptor acepta coma con o sin un espacio posterior.
+- Todos los parámetros indicados son obligatorios, aparecen una sola vez y pueden ir en cualquier orden. No se permiten parámetros adicionales.
+- Los enteros no tienen signo y no superan 4294967295. Los números de lectura y orden empiezan en 1 y crecen dentro de cada sesión.
+- Las distancias usan punto decimal, sin signos ni notación exponencial. El protocolo representa 0–400 cm; el control trabaja en 2–30 cm.
+- TCP es un flujo de bytes: se reconstruyen líneas fragmentadas y se separan varias líneas recibidas juntas.
+- Una línea malformada o excesiva provoca cierre de sesión. El servidor intenta enviar ERROR; los ESP32 cierran directamente ante errores locales.
+
+En los ejemplos se omite el salto final para facilitar la lectura. El emisor agrega el salto real; no escribe literalmente barra y letra n.
+
+## 3. Catálogo de comandos
+
+### 3.1 REGISTRO
+
+Identifica el rol. Debe ser el primer mensaje después de conectarse, dentro de tres segundos.
+
+| Campo | Valor |
 |---|---|
-| Terminación | Se envía LF (`\n`); se acepta LF o CRLF (`\r\n`). El salto real termina el mensaje: no se escriben literalmente barra y letra n. |
-| Tamaño | Máximo 128 bytes contando el terminador. |
-| Separación | Un espacio entre comando y argumentos; se emite coma y espacio entre parámetros. Se acepta coma con o sin un espacio posterior. |
-| Nombres | Comandos en mayúsculas y parámetros en minúsculas; se distinguen mayúsculas y minúsculas. |
-| Parámetros | Todos los indicados son obligatorios, aparecen una sola vez y pueden ir en cualquier orden. No se permiten parámetros adicionales. |
-| Números | Enteros sin signo de hasta 4294967295; secuencias desde 1. Distancias entre 0 y 400, con punto decimal, sin signos ni notación exponencial. |
-| Recepción TCP | Una lectura del socket puede contener parte de una línea o varias líneas. Se reconstruyen y separan las líneas antes de interpretarlas. |
+| Quién envía | Cliente sensor o cliente actuador recién conectado. |
+| Quién recibe | Servidor. |
+| Dirección | Cliente → servidor. |
+| Parámetros | `tipo`, `version`. |
+| Respuesta correcta | `ACEPTADO REGISTRO`. |
+| Respuesta ante error | `ERROR codigo=...` y cierre. |
 
-## 3. Resumen de mensajes y permisos
-
-| Mensaje | Quién puede enviarlo | Quién lo recibe | Respuesta esperada |
-|---|---|---|---|
-| REGISTRO | Sensor o actuador recién conectado. | Servidor. | ACEPTADO REGISTRO; ERROR si el registro es inválido. |
-| ACEPTADO REGISTRO | Servidor. | El cliente que se registró. | Ninguna confirmación adicional. |
-| LECTURA | Sensor registrado. | Servidor. | RECIBIDO con el mismo número; ERROR si es inválida. |
-| RECIBIDO | Servidor. | Sensor. | Ninguna. Confirma lectura, no actuación. |
-| ORDEN | Servidor. | Actuador registrado. | APLICADO con el mismo número, en menos de 1 s. |
-| APLICADO | Actuador registrado. | Servidor. | Ninguna confirmación adicional. Puede seguir una nueva ORDEN. |
-| ERROR | Cualquier participante, según la especificación. | El otro extremo de su conexión. | Ninguna; termina la sesión. La implementación actual lo emite en el servidor; los ESP32 cierran directamente ante errores locales. |
-
-## 4. Detalle de cada mensaje
-
-### 4.1 REGISTRO: identificar al cliente
-
-**Envía:** sensor o actuador. **Recibe:** servidor. Debe ser el primer mensaje, dentro de 3 s desde la conexión.
+| Parámetro | Valores | Significado |
+|---|---|---|
+| tipo | `sensor` o `actuador`. | Define los mensajes permitidos para esa conexión. |
+| version | `1`. | Versión implementada del protocolo. |
 
 ```text
 REGISTRO tipo=sensor, version=1
 REGISTRO tipo=actuador, version=1
 ```
 
-| Parámetro | Valores | Para qué sirve |
+Un nuevo cliente del mismo rol reemplaza la conexión anterior. Un segundo REGISTRO en la misma conexión se rechaza. Al aceptar al actuador, el servidor envía el estado vigente, inicialmente APAGADO.
+
+### 3.2 LECTURA
+
+Envía una adquisición sin filtrar. El sensor intenta medir cada 100 ms.
+
+| Campo | Valor |
+|---|---|
+| Quién envía | Solo cliente sensor registrado. |
+| Quién recibe | Servidor. |
+| Dirección | Sensor → servidor. |
+| Parámetros | `numero`, `tiempo_ms`, `distancia_cm`. |
+| Respuesta correcta | `RECIBIDO numero=N`, con el número de la lectura. |
+| Respuesta ante error | `ERROR codigo=...` y cierre. |
+
+| Parámetro | Valores | Significado |
 |---|---|---|
-| tipo | `sensor` o `actuador`. | Asignar el papel del cliente y sus permisos. |
-| version | Entero `1`. | Comprobar que el cliente usa esta versión del protocolo. |
-
-**Respuesta correcta:** `ACEPTADO REGISTRO`. Un registro incorrecto recibe `ERROR codigo=...` y se cierra. Un nuevo cliente del mismo tipo reemplaza la sesión anterior. No se puede registrar dos veces la misma conexión.
-
-### 4.2 ACEPTADO REGISTRO: habilitar el intercambio
-
-**Envía:** servidor. **Recibe:** cliente que envió REGISTRO.
-
-```text
-ACEPTADO REGISTRO
-```
-
-**Parámetros:** ninguno; `REGISTRO` es una palabra fija, no un valor configurable. **Respuesta:** ninguna. El sensor ya puede enviar lecturas. Al actuador se le envía el estado vigente, inicialmente APAGADO.
-
-### 4.3 LECTURA: enviar una adquisición
-
-**Envía:** únicamente sensor registrado. **Recibe:** servidor.
+| numero | Entero de 1 a 4294967295, creciente por sesión. | Identifica la lectura que se confirma. |
+| tiempo_ms | Entero de 0 a 4294967295. | Reloj local del sensor al comenzar la adquisición; puede desbordarse. |
+| distancia_cm | Decimal de 0 a 400, o `SIN_ECO`. | Medición en cm; SIN_ECO indica ausencia de eco o adquisición fuera del dominio representable. |
 
 ```text
 LECTURA numero=42, tiempo_ms=12500, distancia_cm=15.20
 LECTURA numero=43, tiempo_ms=12600, distancia_cm=SIN_ECO
 ```
 
-| Parámetro | Tipo y valores | Significado |
-|---|---|---|
-| numero | Entero de 1 a 4294967295, creciente por sesión. | Identifica la lectura y permite asociar su confirmación. |
-| tiempo_ms | Entero de 0 a 4294967295. | Reloj local del sensor al iniciar la adquisición, en milisegundos; puede desbordarse. |
-| distancia_cm | Decimal entre 0 y 400, o `SIN_ECO`. | Distancia original en centímetros. SIN_ECO indica ausencia de eco o adquisición fuera del dominio representable. |
+El servidor valida y procesa antes de confirmar. Una lectura fuera de 2–30 cm o SIN_ECO solicita apagado y vacía el filtro, pero cuenta como actividad del sensor si está correctamente formada.
 
-**Respuesta correcta:** `RECIBIDO numero=42` para la primera línea del ejemplo. El servidor valida y procesa la lectura antes de confirmar. Una distancia fuera de 2–30 cm es válida como mensaje, pero solicita apagado. `SIN_ECO` también demuestra actividad del sensor.
+El sensor puede tener varias lecturas pendientes. RECIBIDO debe ser creciente y no superar el último número enviado. La espera empieza al generar una lectura cuando todas las anteriores estaban confirmadas y se renueva con cada RECIBIDO válido. Si hay pendientes y la espera alcanza un segundo, el sensor desconecta y vuelve a registrarse. Una pausa sin lecturas pendientes no consume ese plazo.
 
-El sensor intenta medir cada 100 ms. Puede tener varias lecturas pendientes; las confirmaciones deben ser crecientes y no superar el último número enviado. Si hay pendientes y pasa 1 s sin confirmaciones, desconecta y vuelve a registrarse. Los relojes de la PC y el sensor no están sincronizados: no se restan para calcular el tiempo de respuesta física.
+### 3.3 ORDEN
 
-### 4.4 RECIBIDO: confirmar una lectura
+Solicita un estado completo de los LEDs: se apagan los tres y se activa el color indicado, si corresponde.
 
-**Envía:** servidor. **Recibe:** únicamente sensor.
-
-```text
-RECIBIDO numero=42
-```
+| Campo | Valor |
+|---|---|
+| Quién envía | Servidor. |
+| Quién recibe | Solo cliente actuador registrado. |
+| Dirección | Servidor → actuador. |
+| Parámetros | `numero`, `estado`. |
+| Respuesta correcta | `APLICADO numero=N`, después de actualizar los pines. |
+| Ante error local | El actuador apaga y cierra su sesión. |
 
 | Parámetro | Valores | Significado |
 |---|---|---|
-| numero | Número de la LECTURA confirmada. | Confirma que se validó y procesó esa adquisición. |
-
-**Respuesta:** ninguna. No significa que el actuador haya cambiado ni debe generar otra confirmación.
-
-### 4.5 ORDEN: solicitar el estado de los LEDs
-
-**Envía:** servidor. **Recibe:** únicamente actuador registrado.
+| numero | Entero de 1 a 4294967295, creciente por sesión. | Identifica la orden pendiente de confirmación. |
+| estado | `ROJO`, `AMARILLO`, `VERDE`, `APAGADO`. | Un color fijo o todos apagados. |
 
 ```text
 ORDEN numero=81, estado=AMARILLO
 ```
 
-| Parámetro | Valores | Significado |
-|---|---|---|
-| numero | Entero de 1 a 4294967295, creciente por sesión. | Identifica la orden que debe confirmar el actuador. |
-| estado | `ROJO`, `AMARILLO`, `VERDE` o `APAGADO`. | Estado completo de las salidas. Se apagan los tres LEDs y después se enciende el seleccionado, si corresponde. |
+El servidor envía órdenes al registrar al actuador, ante cambio de estado y como refresco cada segundo. Mantiene como máximo una orden pendiente. Mientras espera, conserva solo el último estado deseado; un apagado sustituye los estados anteriores aún no enviados.
 
-**Respuesta correcta:** `APLICADO numero=81`, después de actualizar los pines y antes de 1 s desde el envío de la orden por el servidor.
+El plazo para procesar APLICADO es **menor de un segundo desde que el servidor encola la orden**. Incluye la espera para transmitir por TCP; no empieza al recibirla el ESP32. Una salida bloqueada tampoco mantiene la sesión indefinidamente.
 
-Se envía una orden al registrar el actuador, al cambiar el estado y como refresco cada 1 s. Existe como máximo una orden pendiente. Mientras espera su confirmación, el servidor conserva solo el último estado deseado; un apagado sustituye los estados anteriores aún no enviados. Tras confirmar, envía ese estado si difiere del confirmado.
+## 4. Respuestas y códigos de error
 
-### 4.6 APLICADO: confirmar una actuación
+Las respuestas no generan otra confirmación. Por ejemplo, RECIBIDO no se responde con RECIBIDO y APLICADO no se responde con APLICADO.
 
-**Envía:** únicamente actuador registrado. **Recibe:** servidor.
+| Respuesta | Quién envía | Quién recibe | Parámetros | Significado |
+|---|---|---|---|---|
+| `ACEPTADO REGISTRO` | Servidor. | Cliente que se registró. | Ninguno; REGISTRO es una palabra fija. | Rol aceptado; permite comenzar el intercambio. |
+| `RECIBIDO numero=42` | Servidor. | Sensor. | numero: identifica la LECTURA confirmada. | Lectura validada y procesada; no confirma actuación física. |
+| `APLICADO numero=81` | Actuador. | Servidor. | numero: exactamente el de la ORDEN pendiente. | Se ejecutaron las escrituras de los pines; no prueba que el LED emita luz. |
+| `ERROR codigo=FORMATO` | Servidor en la implementación actual; los clientes también pueden informar ERROR. | El otro extremo de su conexión. | codigo: motivo del rechazo. | La sesión termina y no se responde con otro ERROR. |
 
-```text
-APLICADO numero=81
-```
+Una confirmación incorrecta, sin orden pendiente o tardía provoca cierre. El servidor intenta entregar ERROR y cierra; si el cliente no lee, cierra después de 0,5 s. Los errores de transporte y los tiempos agotados se registran y cierran directamente.
 
-| Parámetro | Valores | Significado |
-|---|---|---|
-| numero | Exactamente el número de la ORDEN pendiente. | Confirma que se ejecutaron las escrituras de los pines. |
-
-**Respuesta:** ninguna confirmación adicional. El servidor libera la orden pendiente; puede enviar otra orden o esperar al siguiente refresco. Un número incorrecto, una confirmación sin orden pendiente o una confirmación tardía provoca cierre. Esta confirmación de software no demuestra que el LED emita luz.
-
-### 4.7 ERROR: informar el rechazo
-
-**Envía en el código actual:** servidor. **Recibe:** el cliente cuyo mensaje fue rechazado.
-
-```text
-ERROR codigo=FORMATO
-```
-
-| Parámetro | Valores | Significado |
-|---|---|---|
-| codigo | Uno de los códigos del apartado 7. | Motivo por el que no se puede continuar la sesión. |
-
-**Respuesta:** ninguna; un ERROR no genera otro ERROR. El servidor intenta enviarlo y cierra la sesión; si el cliente no lee, cierra después de 0,5 s. Los fallos de transporte y los tiempos agotados se registran y cierran directamente.
-
-## 5. Ejemplo de secuencia completa
-
-```mermaid
-sequenceDiagram
-    participant SENSOR as Cliente sensor (ESP32)
-    participant SERVIDOR as Servidor (PC, Python)
-    participant ACTUADOR as Cliente actuador (ESP32)
-    ACTUADOR->>SERVIDOR: Inicia conexión TCP
-    ACTUADOR->>SERVIDOR: REGISTRO tipo=actuador, version=1
-    SERVIDOR-->>ACTUADOR: ACEPTADO REGISTRO
-    SERVIDOR->>ACTUADOR: ORDEN numero=1, estado=APAGADO
-    ACTUADOR-->>SERVIDOR: APLICADO numero=1
-    SENSOR->>SERVIDOR: Inicia conexión TCP
-    SENSOR->>SERVIDOR: REGISTRO tipo=sensor, version=1
-    SERVIDOR-->>SENSOR: ACEPTADO REGISTRO
-    loop Tres adquisiciones válidas, separadas por 100 ms
-        SENSOR->>SERVIDOR: LECTURA numero=N, tiempo_ms=T, distancia_cm=15.20
-        SERVIDOR-->>SENSOR: RECIBIDO numero=N
-    end
-    Note over SERVIDOR: Mediana de tres lecturas: amarillo
-    SERVIDOR->>ACTUADOR: ORDEN numero=2, estado=AMARILLO
-    Note over ACTUADOR: Actualiza los pines
-    ACTUADOR-->>SERVIDOR: APLICADO numero=2
-    Note over SERVIDOR,ACTUADOR: Refrescar estado cada 1 s; solo una orden pendiente
-```
-
-`N` y `T` son marcadores explicativos: en mensajes reales se sustituyen por enteros. Los clientes pueden conectarse en cualquier orden. Si el sensor ya produjo una clasificación vigente, el actuador recibe ese estado al registrarse.
-
-## 6. Control y fallos
-
-| Condición | Comportamiento |
-|---|---|
-| 2 ≤ d ≤ 10 cm | Rojo fijo. |
-| 10 < d ≤ 20 cm | Amarillo fijo. |
-| 20 < d ≤ 30 cm | Verde fijo. |
-| d < 2, d > 30 o SIN_ECO | Solicitar apagado y vaciar filtro. |
-| Menos de tres lecturas válidas tras inicio/reconexión/error | Apagado mientras se llena el filtro. |
-| Cinco segundos sin LECTURA válida en formato | Cerrar sensor, vaciar filtro y solicitar apagado. |
-| Cierre TCP detectado del sensor | Lo anterior inmediatamente. |
-| Un segundo sin APLICADO correspondiente | Cerrar actuador y registrar fallo. |
-| Tres segundos sin ORDEN válida en el actuador | Apagado local aunque TCP parezca conectado. |
-| WiFi/TCP desconectado en el actuador | Apagado local inmediato. |
-| Nuevo registro de un rol ocupado | Cerrar sesión anterior y reemplazarla. |
-
-Filtro: mediana móvil de tres lecturas **dentro de 2–30 cm**. Una distancia fuera de ese intervalo es aceptada por el protocolo, pero fuerza apagado. SIN_ECO demuestra actividad y reinicia el plazo de cinco segundos. La primera lectura tiene el mismo plazo desde el registro.
-
-Los clientes reintentan la conectividad cada dos segundos y repiten el registro. Cada intento TCP usa una IPv4 literal y límite de 250 ms. Vaciar búferes, números y confirmaciones al desconectar. Una nueva sesión del sensor invalida los datos anteriores.
-
-Los plazos se verifican en cada vuelta del programa, sujetos a resolución del bucle y del sistema operativo. El apagado solicitado puede esperar a una orden pendiente (hasta un segundo). El temporizador local protege ante pérdida del servidor.
-
-## 7. Errores
-
-| Código | Motivo |
+| Código del servidor | Motivo |
 |---|---|
 | FORMATO | Sintaxis, codificación o controles incorrectos. |
 | LONGITUD | Mensaje que no cabe en 128 bytes. |
 | COMANDO | Comando desconocido. |
-| FALTANTE | Falta campo obligatorio. |
-| ARGUMENTO | Campo desconocido. |
-| DUPLICADO | Campo repetido. |
+| FALTANTE | Falta un parámetro obligatorio. |
+| ARGUMENTO | Parámetro desconocido. |
+| DUPLICADO | Parámetro repetido. |
 | VALOR | Número o estado fuera del dominio. |
 | VERSION | Versión distinta de 1. |
 | SIN_REGISTRO | Mensaje antes del registro. |
 | YA_REGISTRADO | Segundo registro en la misma conexión. |
 | ROL | Mensaje incompatible con el rol. |
 | SECUENCIA | Número de lectura repetido o decreciente. |
-| CONFIRMACION | No existe orden pendiente o su número no coincide. |
+| CONFIRMACION | No existe orden pendiente o el número no coincide. |
 | CONFIRMACION_TARDIA | Confirmación fuera del plazo. |
 
-El servidor intenta entregar el error y luego cierra; si el cliente no lee, cierra tras 0,5 s. Errores de transporte y tiempos agotados se registran y cierran directamente. Los firmwares apagan/reconectan ante mensajes incompatibles o errores del servidor. Prototipo para red local, sin autenticación ni cifrado de aplicación.
+## 5. Gramática formal (EBNF)
 
-## 8. Verificación
+La gramática describe la estructura. Los parámetros concretos, sus cantidades y valores se validan según los apartados 3 y 4.
 
-Consultar [pruebas automáticas](pruebas/), [guion Ncat](pruebas/verificar_ncat.py), [instrucciones](README.md) y [estado de validación](documentacion/VALIDACION.md). Una prueba propuesta no se presenta como ejecutada.
+```ebnf
+mensaje       = ( aceptado | con_parametros ), fin ;
+aceptado      = "ACEPTADO REGISTRO" ;
+con_parametros = comando, " ", parametro, { separador, parametro } ;
+comando       = "REGISTRO" | "LECTURA" | "ORDEN" | "RECIBIDO" | "APLICADO" | "ERROR" ;
+parametro     = clave, "=", valor ;
+clave         = ( minuscula | "_" ), { minuscula | "_" } ;
+valor         = caracter_valor, { caracter_valor } ;
+caracter_valor = minuscula | mayuscula | digito | "_" | "." ;
+separador     = ",", [ " " ] ;
+fin           = "\n" | "\r\n" ;
+minuscula     = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+              | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+mayuscula     = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+              | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+digito        = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+```
 
-Wireshark puede usar `tcp.port == 5000`. Los intervalos entre paquetes o entre ORDEN y APLICADO no sustituyen la medición física sensor → servidor → LED.
+Ejemplo de validación semántica: `ORDEN numero=1, estado=AZUL` tiene estructura correcta, pero AZUL no es un estado permitido y el actuador cierra la sesión.
+
+## 6. Diagrama de secuencia
+
+```mermaid
+sequenceDiagram
+    participant N as Cliente sensor (ESP32)
+    participant S as Servidor (PC, Python)
+    participant A as Cliente actuador (ESP32)
+    A->>S: Inicia conexión TCP
+    A->>S: REGISTRO tipo=actuador, version=1
+    S-->>A: ACEPTADO REGISTRO
+    S->>A: ORDEN numero=1, estado=APAGADO
+    A-->>S: APLICADO numero=1
+    N->>S: Inicia conexión TCP
+    N->>S: REGISTRO tipo=sensor, version=1
+    S-->>N: ACEPTADO REGISTRO
+    loop Tres adquisiciones válidas, separadas por 100 ms
+        N->>S: LECTURA numero=N, tiempo_ms=T, distancia_cm=15.20
+        S-->>N: RECIBIDO numero=N
+    end
+    Note over S: Mediana de tres lecturas: amarillo
+    S->>A: ORDEN numero=2, estado=AMARILLO
+    A-->>S: APLICADO numero=2
+    Note over S,A: Refresco cada 1 s, con una sola orden pendiente
+```
+
+N y T son marcadores; se sustituyen por enteros reales. Los clientes pueden conectarse en cualquier orden. Si hay un estado calculado vigente, el actuador lo recibe al registrarse.
+
+## 7. Estados de la conexión
+
+```mermaid
+stateDiagram-v2
+    [*] --> Conectado: conexión TCP
+    Conectado --> Registrado: REGISTRO válido y ACEPTADO REGISTRO
+    Conectado --> Cerrado: registro inválido o plazo de 3 s agotado
+    Registrado --> Registrado: mensaje permitido y respuesta válida
+    Registrado --> Cerrado: error, desconexión, reemplazo o plazo agotado
+    Cerrado --> [*]
+```
+
+Cada reconexión TCP crea una sesión nueva: se repite REGISTRO y se reinician números, búferes y confirmaciones pendientes.
+
+| Rol registrado | Envía | Recibe |
+|---|---|---|
+| Sensor | LECTURA; puede informar ERROR. | RECIBIDO o ERROR. |
+| Actuador | APLICADO; puede informar ERROR. | ORDEN o ERROR. |
+
+Los ESP32 actuales cierran directamente ante un error local; no generan ERROR. Un mensaje enviado por el rol equivocado se rechaza.
+
+## 8. Manejo de fallos
+
+| Situación | Comportamiento |
+|---|---|
+| Sensor sin LECTURA durante 5 s | Cerrar sensor, vaciar filtro y solicitar APAGADO. Se cuenta desde el registro o la última LECTURA correctamente formada. |
+| Sensor desconectado | Lo anterior al detectar cierre TCP o error de socket. |
+| LECTURA con SIN_ECO o fuera de 2–30 cm | Confirmar recepción, vaciar filtro y solicitar APAGADO; renueva la actividad del sensor. |
+| Actuador sin APLICADO válido durante 1 s | Cerrar su sesión y registrar el fallo. El segundo incluye la cola de salida de la PC. |
+| Actuador sin ORDEN válida durante 3 s | Apagado local aunque TCP todavía parezca conectado. |
+| WiFi/TCP desconectado en actuador | Apagado local inmediato al detectar la pérdida. |
+| Actuador reconectado | Registrar de nuevo y recibir el último estado vigente; APAGADO si no hay datos válidos. |
+| Rol ya ocupado | Cerrar la sesión anterior y adoptar la nueva sin que la limpieza anterior borre la nueva. |
+| Pérdida de WiFi o servidor | Reintentar cada 2 s; cada intento TCP usa IPv4 literal y límite de 250 ms. |
+| Registro sin aceptación durante 3 s | El ESP32 cierra e intenta reconectar. |
+| Envío pendiente del ESP32 durante 1 s | Cerrar para evitar una espera indefinida. |
+
+Los plazos se comprueban en cada vuelta del programa, sujetos a la resolución del bucle y del sistema operativo. APAGADO puede esperar a que se resuelva una orden pendiente, hasta un segundo. El temporizador local protege ante pérdida del servidor.
+
+## 9. Lógica de control (distancia → LEDs)
+
+El servidor aplica la mediana móvil de tres lecturas válidas consecutivas dentro de 2–30 cm. Una lectura fuera de ese intervalo o SIN_ECO borra el filtro y apaga; se requieren tres lecturas válidas nuevas para reanudar la indicación.
+
+| Distancia filtrada d (cm) | Rango | ORDEN para el actuador |
+|---|---|---|
+| 2 ≤ d ≤ 10 | Rojo | `estado=ROJO`: rojo fijo, otros apagados. |
+| 10 < d ≤ 20 | Amarillo | `estado=AMARILLO`: amarillo fijo, otros apagados. |
+| 20 < d ≤ 30 | Verde | `estado=VERDE`: verde fijo, otros apagados. |
+| Fuera de 2–30 o SIN_ECO | Inválida para control | `estado=APAGADO`: todos apagados. |
+
+Los tres rangos son contiguos y no se solapan dentro del rango de trabajo. Los límites 10, 20 y 30 pertenecen a rojo, amarillo y verde, respectivamente. Cada orden representa el estado completo; no hay parpadeo en la implementación actual.
+
+## 10. Ejemplos y pruebas con Ncat y Wireshark
+
+### 10.1 Traza de ejemplo
+
+Clientes ya registrados y orden inicial APAGADO confirmada:
+
+```text
+sensor   → servidor : LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20
+servidor → sensor   : RECIBIDO numero=1
+sensor   → servidor : LECTURA numero=2, tiempo_ms=100, distancia_cm=15.20
+servidor → sensor   : RECIBIDO numero=2
+sensor   → servidor : LECTURA numero=3, tiempo_ms=200, distancia_cm=15.20
+servidor → sensor   : RECIBIDO numero=3
+servidor → actuador : ORDEN numero=2, estado=AMARILLO
+actuador → servidor : APLICADO numero=2
+sensor   → servidor : LECTURA numero=4, tiempo_ms=300, distancia_cm=SIN_ECO
+servidor → sensor   : RECIBIDO numero=4
+servidor → actuador : ORDEN numero=3, estado=APAGADO
+actuador → servidor : APLICADO numero=3
+```
+
+### 10.2 Casos de error
+
+```text
+LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20  (sin registro)
+→ ERROR codigo=SIN_REGISTRO
+REGISTRO tipo=robot, version=1
+→ ERROR codigo=VALOR
+LECTURA numero=1, tiempo_ms=0, distancia_cm=401   (sensor registrado)
+→ ERROR codigo=VALOR
+```
+
+Cada caso requiere una conexión nueva si la anterior fue cerrada por un error.
+
+### 10.3 Pruebas sin hardware con Ncat
+
+Desde la raíz del repositorio:
+
+```powershell
+python -B pruebas/verificar_ncat.py
+```
+
+Este guion usa procesos Ncat reales para simular ambos clientes y responder dentro de los plazos. Conserva las comprobaciones de registro, estados, confirmaciones, inactividad, reconexión y errores. Ver [validación y evidencias](documentacion/VALIDACION.md).
+
+Para una conexión manual de sensor hacia un servidor iniciado:
+
+```powershell
+ncat -C 192.168.0.102 5000
+```
+
+Enviar REGISTRO primero y después las tres lecturas del ejemplo, antes de que venza el plazo de inactividad. No usar escritura manual para evaluar los plazos de un segundo del actuador: utilizar el guion automatizado. Ncat puede invocarse desde `.herramientas/ncat/ncat.exe` si no está en el PATH.
+
+### 10.4 Captura en Wireshark
+
+- Filtro: `tcp.port == 5000`.
+- Consultar el flujo TCP para ver los mensajes reconstruidos.
+- El intervalo observado entre mensajes mide comunicación, no demuestra por sí solo el tiempo físico sensor → servidor → LED.
+- Los relojes de la PC y del sensor no están sincronizados; no restar sus tiempos para calcular respuesta física.
+
+## 11. Diagrama de arquitectura (despliegue lógico)
+
+```mermaid
+flowchart LR
+    subgraph LAN["Red WiFi — IEEE 802.11"]
+        N["Cliente sensor<br/>ESP32 + HC-SR04"]
+        S["Servidor TCP<br/>PC — Python<br/>Filtro y clasificación"]
+        A["Cliente actuador<br/>ESP32 + 3 LEDs"]
+        N -->|"REGISTRO / LECTURA"| S
+        S -->|"ACEPTADO / RECIBIDO / ERROR"| N
+        S -->|"ACEPTADO / ORDEN / ERROR"| A
+        A -->|"REGISTRO / APLICADO"| S
+    end
+```
+
+Las flechas representan mensajes de aplicación. Ambos ESP32 inician sus conexiones hacia Python; las IP no identifican el rol.
+
+## 12. Casos límite y reglas operativas
+
+- 1,99 cm → apagado; 2 y 10 → rojo; 10,01 y 20 → amarillo; 20,01 y 30 → verde; 30,01 → apagado. La clasificación se aplica a la distancia filtrada.
+- SIN_ECO no equivale a sensor inactivo: se confirma, solicita apagado y renueva el plazo de cinco segundos.
+- RECIBIDO confirma procesamiento de una lectura; APLICADO confirma escrituras de GPIO. Ninguno acredita por sí solo el resultado físico.
+- Hay una sola ORDEN pendiente por sesión del actuador; una nueva clasificación actualiza el estado deseado, sin acumular órdenes antiguas.
+- Una reconexión reinicia la secuencia. El sensor reconecta antes de superar el máximo de su número de lectura.
+- Los HC-SR04 no miden con fiabilidad cerca de cero; admitir 0–400 en el protocolo no declara exactitud física en todo ese intervalo.
+- `MENSAJE_ENCOLADO` registra texto guardado para transmitir, no una entrega completada. `latencia_confirmacion_ms` mide desde ORDEN encolada hasta APLICADO procesado, incluyendo la cola y la red; no es respuesta física completa.
+
+## 13. Plan de validación
+
+| Prueba | Procedimiento | Resultado esperado | Estado/evidencia |
+|---|---|---|---|
+| Rangos y filtro | Fronteras 2, 10, 20 y 30 cm; tres muestras y lecturas inválidas. | Colores y apagado según apartado 9. | Software aprobado; medición física pendiente. |
+| Protocolo y transporte | Campos incorrectos, líneas fragmentadas o concatenadas, límites de tamaño y roles. | Aceptar mensajes válidos y rechazar los demás. | Python, Unity y Ncat; ver VALIDACION.md. |
+| Inactividad y desconexión | Partir de color activo; interrumpir lecturas o cerrar sensor. | Solicitar apagado y vaciar filtro. | Sockets locales con reloj controlado; WiFi físico pendiente. |
+| Confirmaciones y recuperación | Omitir o alterar APLICADO; reconectar ambos clientes. | Cerrar al vencer el plazo, repetir registro y limpiar sesión. | Software aprobado; pruebas físicas pendientes. |
+| Estabilidad | Operación continua de 15 minutos con ambas placas. | Sin bloqueos ni reinicios. | Pendiente. |
+| Exactitud | Diez lecturas a 2, 5, 10, 15, 20, 25 y 30 cm frente a cinta métrica. | Error absoluto máximo de 3 cm. | Pendiente. |
+| Muestreo | Contar intentos, lecturas válidas y mensajes recibidos por separado. | Al menos 2 lecturas válidas/s. | Pendiente en hardware. |
+| Respuesta completa | Medir 20 cambios entre rangos con tiempo común o video. | Hasta 1 s de sensor a LED. | Pendiente. |
+
+Consultar [VALIDACION.md](documentacion/VALIDACION.md) para los resultados y la explicación de cada prueba. Los ensayos locales no demuestran exactitud, estabilidad ni actuación física de las placas.
+
+## 14. Diagramas adicionales exigidos por la práctica
+
+El informe debe incluir los esquemas eléctricos de ambos objetos y un diagrama de clases extraído de la implementación real. Las conexiones y la guía de archivos están en [README.md](README.md); esos datos no sustituyen los esquemas del montaje.
+
+Clases principales: SensorUltrasonico, IndicadorLeds y ClienteTcp en C++; ControlDistancia, ProtocoloAplicacion, ReceptorLineas, ServidorTcp, SesionCliente y RegistroPruebas en Python. Los diagramas de arquitectura y secuencia anteriores sirven de base para el informe.
+
+## 15. Decisiones de diseño y relación con el protocolo inicial
+
+Se mantuvo la base: TCP, texto ASCII, líneas, parámetros separados por comas, registro del rol, dos clientes que inician conexión y puerto 5000. Los nombres y algunos campos evolucionaron durante la implementación. No se presenta esa evolución como una obligación de la rúbrica.
+
+| Antes | Ahora | Motivo |
+|---|---|---|
+| REGISTER / POST / SET y nombres de campos en inglés. | REGISTRO / LECTURA / ORDEN y campos en español. | Unificar el idioma solicitado. |
+| OK para registro, lectura y actuación. | ACEPTADO, RECIBIDO y APLICADO; las dos últimas llevan numero. | Distinguir las respuestas y asociarlas con la lectura u orden. Es una decisión de diseño; OK también podría servir con una única petición pendiente. |
+| distance=-1. | distancia_cm=SIN_ECO. | Representar explícitamente ausencia de medición; no es una exigencia de la práctica. |
+| Lecturas enteras previstas en el documento inicial. | Distancias decimales. | Los borradores no coincidían: el ESP32 enviaba decimales y Python intentaba convertir con int. Se evita perder precisión. |
+| Lecturas cada 500 ms en documento; 1000 ms en el borrador del sensor. | Intentos cada 100 ms. | Unificar programas y documentación y disponer de margen para el filtro y la respuesta de hasta 1 s. El valor concreto es una decisión de diseño. |
+| Parpadeo previsto en servidor y documento inicial. | Tres colores fijos. | Decisión del plan vigente. El borrador del actuador solo reconocía on y no implementaba blink_2 ni blink_4. La práctica admite comportamientos distintos sin exigir parpadeo. |
+| Primer rango desde 0 cm. | Rango de trabajo desde 2 cm. | Acordar el control con el rango físico declarado del sensor. |
+
+La corrección de inactividad, reconexiones y confirmaciones era necesaria para cumplir el comportamiento definido. No obligaba a cambiar todos los nombres, añadir identificadores ni usar un modelo de servidor específico. Se conserva la implementación actual y se recupera la presentación del documento inicial.

@@ -1,10 +1,44 @@
 {
   "tipo": "SOFTWARE_SIN_PLACAS",
+  "estado": "APROBADO",
+  "commit_base": "ce000b48328b69e013b92e866b2294585e6892ff",
+  "codigo_sha256": {
+    "actuador/include/IndicadorLeds.h": "087bac193bb2107dfd05d34de9c5a824fb26cf09d352422e5d18c67ceaa82be1",
+    "actuador/platformio.ini": "5cdbad41b563c767b3cff7177502164865a04ec6433dc77fed63f0790e04a991",
+    "actuador/src/IndicadorLeds.cpp": "0e6782dd6e39ab101ca24e655c006a6e00813aeb298c0dc61648951f91408ca3",
+    "actuador/src/main.cpp": "986945971764f89366bea0ee5040d611b59d4acb41f24fa622d2adc937831ffb",
+    "comun/ClienteTcp.h": "2160ea660473403274e77c284cf58bdcbd4b8a7a8680a9df13053ef52adc0041",
+    "comun/ConfiguracionRedEjemplo.h": "acb5da9f527b87cff3bdc50e723fec8c9cf47ef228beef4b6cfdf0071cd4f80f",
+    "comun/ProtocoloAplicacion.h": "7f17b3a1dd97d81d64187140c8feccc3534ac80470e4563c0b01c33dd71da784",
+    "platformio.ini": "7ac3a92dbbd9599d8a75246a6c157567e680a9b714ba8fb885364ce6de1581f4",
+    "pruebas/analizar_registro.py": "ae6e2500a12d3e8bbb39a9e4e4ab06ec81dd37afcb890febc9a156b4b0056609",
+    "pruebas/dobles/Arduino.h": "c10c4f0bc663d89340b00111798988387072f98f4801c0a2a0ef6feea943e544",
+    "pruebas/dobles/lwip/sockets.h": "00159b46afffff840cf4830594ca98e51a6b59024edc0a2eff953b53c72f1c40",
+    "pruebas/dobles/WiFi.h": "4ccaac14a5826baa442446e5eeb4e9025dfb8e660cd79ed13654ef6aa68561e4",
+    "pruebas/test_control.py": "73438e2a08df6cf6e114dbeb88048a3429c97213626b6d718374c9bec1d2f611",
+    "pruebas/test_integracion.py": "e4a84dc4d5d4cd12ce0e553946614fd71a49fc12985e4245ea0e26192817b53e",
+    "pruebas/test_protocolo.py": "b21bbd1404e4dec2249195bbfe25cc1773fcc2b088a143e312a71d34e6dac2d6",
+    "pruebas/unity/comprobar_cliente.h": "5af719a8be11d17682868f9f35208e792397b7be076020c43c71fcbe36c90f54",
+    "pruebas/unity/test_actuador/test_main.cpp": "2a30581dcbd8b104b9b5b58db30a7cbdddd4765bd8817a4f5b5279dc6dd7e1fb",
+    "pruebas/unity/test_componentes/test_main.cpp": "5d8070dafbc3bf53881f8b15ea1b63cf51860f5b9c84e325bffdab5adcd6ff83",
+    "pruebas/unity/test_sensor/test_main.cpp": "428b4d20806837c9b458d648920ac525870bffa2d1b9eef68248115919e965d6",
+    "pruebas/validar_software.py": "4d8d52aee70d7964773810f27f97014cd38b62f0d584f8ea2b491d955effb7f4",
+    "pruebas/verificar_ncat.py": "ee8350746b77df96f07420167b9f990b99b751457a90f9d8f7ba7a58e971b780",
+    "sensor/include/SensorUltrasonico.h": "1e43ab290cd70b9402e924674d7092ada85c301097535dc9f16ffa6f44e13e97",
+    "sensor/platformio.ini": "5cdbad41b563c767b3cff7177502164865a04ec6433dc77fed63f0790e04a991",
+    "sensor/src/main.cpp": "f4937d66cd02be8db25633821d65569668fb3b526a0d68f9c32744a5bf89fff2",
+    "sensor/src/SensorUltrasonico.cpp": "f4022e12458a5332504103650b268fcb9f94f51d706a2f3d97fcdfaa89076c16",
+    "servidor/__init__.py": "a4e4e6e8d57eb9963e53961ee3b5fa38e767985b3c4d55f36c571292a78824d3",
+    "servidor/__main__.py": "556926763466c55fc9fbc057e7b22f1a5e0b1b7a492603a223c5a9475d05c1ae",
+    "servidor/control.py": "ebe5461a543d97569398d94daadb13dfa7a6fd7d51d1dab569bec5754fb7f986",
+    "servidor/protocolo.py": "3dfe6de3dbb9b45ae47ea0f273236ca8a4ef3ac1c9644f1c571db580bdb2521b",
+    "servidor/servidor.py": "9ff7262d0e11ebddf027a31f68647bb21ea55b0c86f280a7ab8972f2895e84de"
+  },
   "python": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
   "resultados": [
     {
       "prueba": "pruebas_python",
-      "inicio_utc": "2026-10-12T01:06:24.627258+00:00",
+      "inicio_utc": "2026-10-12T01:48:04.791460+00:00",
       "comando": [
         "C:\\Users\\Maria\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
         "-B",
@@ -19,13 +53,44 @@
       "estado": "APROBADO"
     },
     {
-      "prueba": "unity_y_compilacion_esp32",
-      "estado": "PENDIENTE",
-      "motivo": "No se encontró PlatformIO"
+      "prueba": "pruebas_unity",
+      "inicio_utc": "2026-10-12T01:48:27.702617+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\platformio.exe",
+        "test",
+        "-e",
+        "native"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "prueba": "compilacion_sensor",
+      "inicio_utc": "2026-10-12T01:48:37.033861+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\platformio.exe",
+        "run",
+        "--project-dir",
+        "sensor"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "prueba": "compilacion_actuador",
+      "inicio_utc": "2026-10-12T01:48:42.792499+00:00",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\platformio.exe",
+        "run",
+        "--project-dir",
+        "actuador"
+      ],
+      "codigo_salida": 0,
+      "estado": "APROBADO"
     },
     {
       "prueba": "pruebas_ncat",
-      "inicio_utc": "2026-10-12T01:06:41.386727+00:00",
+      "inicio_utc": "2026-10-12T01:48:47.718758+00:00",
       "comando": [
         "C:\\Users\\Maria\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
         "-B",

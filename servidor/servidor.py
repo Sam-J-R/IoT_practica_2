@@ -68,7 +68,12 @@ class SesionCliente:
 
 
 class ServidorTcp:
-    """Solo este bucle modifica roles, filtro y órdenes pendientes."""
+    """Coordina los mismos pasos del servidor inicial, agrupados en una clase.
+
+    iniciar -> ejecutar_paso -> _recibir -> _procesar -> _solicitar_estado.
+    _temporizadores revisa los plazos y _transmitir entrega los bytes pendientes.
+    Un solo bucle modifica los clientes y el filtro; no necesita un lock.
+    """
 
     def __init__(
         self,
@@ -80,8 +85,8 @@ class ServidorTcp:
         self.registro: RegistroPruebas = registro or RegistroPruebas()
         self.reloj: Callable[[], float] = reloj
         self.escucha: Optional[socket.socket] = None
-        self.sesiones: dict[socket.socket, SesionCliente] = {}
-        self.roles: dict[str, SesionCliente] = {}
+        self.sesiones: dict[socket.socket, SesionCliente] = {}  # Todas las conexiones, incluso sin registro.
+        self.roles: dict[str, SesionCliente] = {}  # Equivale al diccionario clientes del ejemplo inicial.
         self.control: ControlDistancia = ControlDistancia(self.configuracion)
         self.siguiente_sesion: int = 0
 
@@ -124,6 +129,7 @@ class ServidorTcp:
             self._cerrar_sesion(sesion, "ERROR_ENVIADO")
 
     def _enviar(self, sesion: SesionCliente, linea: str) -> None:
+        """Guarda una línea para transmitir sin bloquear a los otros clientes."""
         if sesion.cerrada or sesion.cerrar_tras_envio:
             return
         datos = ProtocoloAplicacion.codificar(linea)
@@ -132,7 +138,7 @@ class ServidorTcp:
             return
         sesion.salida.extend(datos)
         self._cerrar_si_error_enviado(sesion)
-        self.registro.registrar("MENSAJE_ENVIADO", sesion=sesion.identificador, mensaje=linea)
+        self.registro.registrar("MENSAJE_ENCOLADO", sesion=sesion.identificador, mensaje=linea)
 
     def _rechazar(self, sesion: SesionCliente, codigo: str) -> None:
         self.registro.registrar("ERROR_PROTOCOLO", sesion=sesion.identificador, codigo=codigo)
@@ -162,6 +168,7 @@ class ServidorTcp:
                                 rol=sesion.rol, motivo=motivo)
 
     def _solicitar_estado(self, forzar: bool = False) -> None:
+        """Como actualizar_leds: solicita el estado vigente si no hay orden pendiente."""
         actuador = self.roles.get("actuador")
         if actuador is None or actuador.cerrada or actuador.cerrar_tras_envio or actuador.numero_pendiente != 0:
             return
@@ -170,6 +177,7 @@ class ServidorTcp:
         actuador.numero_orden += 1
         actuador.numero_pendiente = actuador.numero_orden
         actuador.estado_pendiente = self.control.estado
+        # El segundo de espera incluye la cola de salida; no es latencia física.
         actuador.inicio_orden = self.reloj()
         actuador.ultimo_envio = self.reloj()
         self._enviar(actuador, f"ORDEN numero={actuador.numero_orden}, estado={self.control.estado}")
@@ -177,6 +185,7 @@ class ServidorTcp:
                                 numero=actuador.numero_orden, estado=str(self.control.estado))
 
     def _procesar(self, sesion: SesionCliente, linea: str) -> None:
+        """Como procesar_mensaje: interpreta registro, lectura o confirmación."""
         mensaje = ProtocoloAplicacion.interpretar(linea)
         argumentos = mensaje.argumentos
         self.registro.registrar("MENSAJE_RECIBIDO", sesion=sesion.identificador, mensaje=linea)
@@ -227,6 +236,7 @@ class ServidorTcp:
             raise ErrorProtocolo("ROL")
 
     def _recibir(self, sesion: SesionCliente) -> None:
+        """Recibe bytes, reconstruye líneas y las entrega a _procesar."""
         datos = sesion.conexion.recv(1024)
         if not datos:
             self._cerrar_sesion(sesion, "CIERRE_TCP")
@@ -248,6 +258,7 @@ class ServidorTcp:
         self._cerrar_si_error_enviado(sesion)
 
     def _temporizadores(self) -> None:
+        """Revisa los plazos de registro, actividad y confirmación sin detener el bucle."""
         ahora = self.reloj()
         c = self.configuracion
         for sesion in list(self.sesiones.values()):

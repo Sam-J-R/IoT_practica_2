@@ -42,6 +42,26 @@ Los números de los ejemplos son ilustrativos. El registro y la orden inicial de
 | 20 < d ≤ 30 cm | Verde fijo. |
 | Fuera de 2–30 cm o SIN_ECO | Todos apagados; se vacía el filtro. |
 
+### Relación con los códigos iniciales
+
+Se mantienen las clases del servidor. Para reconocer el ejemplo original, sigue esta correspondencia:
+
+| En el servidor inicial | En el servidor actual | Responsabilidad |
+|---|---|---|
+| `clientes` | `ServidorTcp.roles` | Encontrar la sesión del sensor o del actuador. `sesiones` conserva además las conexiones aún no registradas. |
+| `controlar_leds()` | `ControlDistancia.clasificar()` | Elegir el color; `procesar()` aplica primero la mediana. |
+| `actualizar_leds()` | `ServidorTcp._solicitar_estado()` | Solicitar el estado vigente y esperar su confirmación. |
+| `procesar_mensaje()` | `ServidorTcp._procesar()` | Procesar registro, lectura, confirmación o error según el rol. |
+| `enviar()` | `_enviar()` y `_transmitir()` | Guardar una línea y transmitir sus bytes sin detener a los demás clientes. |
+| `atender_cliente()` | `_recibir()` y `_cerrar_sesion()` | Reconstruir líneas TCP y limpiar al cliente desconectado. |
+| Bucle de `main()` | `principal()` y `ejecutar_paso()` | Aceptar conexiones, recibir, transmitir y revisar plazos. |
+
+El servidor original usaba un hilo por cliente y un bloqueo compartido. El actual usa un único bucle con `select`: atiende sockets disponibles y revisa temporizadores. Ambas arquitecturas son válidas; la práctica no exige `select`. Se conserva la elegida para que roles, filtro y órdenes se modifiquen en un solo lugar.
+
+En los ESP32 también se conservó la base: HC-SR04 en GPIO 14/27, LEDs en 33/25/26, WiFi, sockets y lectura de líneas. `ClienteTcp` reúne conexión, registro y reconexión; `SensorUltrasonico.medir()` reúne la adquisición; `IndicadorLeds.aplicar()` actualiza las salidas. Los dos `main.cpp` coordinan esos pasos y usan los mensajes definidos en el protocolo.
+
+Los borradores tenían diferencias reales: el sensor enviaba decimales y Python usaba `int`; el actuador esperaba `OK REGISTER` y el servidor respondía `OK`; no enviaba confirmación de actuación; se preveía parpadeo, pero el actuador solo reconocía `on`. La frecuencia del sensor era de una lectura/s. El protocolo actual unifica esos contratos y conserva las decisiones posteriores del plan.
+
 ## 3. Los tipos y las clases
 
 En el C++ propio se utilizan `int` para pines y cantidades, `float` para centímetros, `bool` para respuestas sí/no y `unsigned long` para tiempos y números de mensajes. `String` representa texto y evita manipular matrices de caracteres. No es un tipo primitivo: es la clase habitual de texto de Arduino.
@@ -50,7 +70,7 @@ En el C++ propio se utilizan `int` para pines y cantidades, `float` para centím
 
 Una clase agrupa datos y acciones relacionados. Las clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) separan su declaración en `.h` de su implementación en `.cpp`, siguiendo las buenas prácticas de programación en C++, e incluyen `comun/` de forma modular mediante banderas de compilación (`-I ../comun`).
 
-El servidor usa una enumeración tipada (`StrEnum`) para los colores (`EstadoLed`) garantizando consistencia y validación estricta, y anotaciones de tipo (`type hints`) en todos sus módulos de Python para facilitar la comprensión y el análisis estático.
+El servidor requiere **Python 3.11 o posterior**. Usa `StrEnum` para nombrar los colores y anotaciones de tipo para ayudar a leer el código. Las anotaciones no verifican valores durante la ejecución: esa validación se realiza explícitamente en el protocolo.
 
 ## 4. Dónde están y cómo ejecutar las pruebas Unity
 
@@ -64,11 +84,11 @@ pio test -e native
 
 | Carpeta Unity | Qué comprueba |
 |---|---|
-| [test_componentes](pruebas/unity/test_componentes/test_main.cpp) | Nueve pruebas de mensajes, números, medición simulada y exclusión de LEDs. Es el punto de entrada más sencillo. |
+| [test_componentes](pruebas/unity/test_componentes/test_main.cpp) | Ocho pruebas de mensajes, números, medición simulada y exclusión de LEDs. Es el punto de entrada más sencillo. |
 | [test_sensor](pruebas/unity/test_sensor/test_main.cpp) | Ejecuta el programa real del sensor con red y reloj simulados: confirmaciones, muestreo y reconexión. |
 | [test_actuador](pruebas/unity/test_actuador/test_main.cpp) | Ejecuta el programa real del actuador con órdenes simuladas: actuación, confirmación, apagado y reconexión. |
 
-Las dos últimas usan [comprobar_cliente.h](pruebas/unity/comprobar_cliente.h) para compartir el ensayo. `pruebas/dobles/` sustituye Arduino y WiFi solamente al probar en PC; las placas usan sus bibliotecas reales.
+Las dos últimas usan [comprobar_cliente.h](pruebas/unity/comprobar_cliente.h): **ocho pruebas cortas por programa**, cada una con su estado reiniciado. Hay 24 pruebas Unity y 23 de Python. Primero se dividieron los ensayos largos para facilitar la lectura; después se fusionaron dos comprobaciones pequeñas de catálogo e interpretación sin retirar sus verificaciones. `pruebas/dobles/` sustituye Arduino y WiFi solamente al probar en PC; las placas usan sus bibliotecas reales. La [explicación de las pruebas](documentacion/VALIDACION.md#7-qué-verifica-cada-prueba) indica qué se comprueba y por qué.
 
 **Los rangos se prueban en Python**, porque ahora la decisión está en el servidor. Unity comprueba el C++ de las placas; no se duplicó la clasificación en C++.
 
@@ -82,6 +102,8 @@ Para ejecutar todas las comprobaciones y guardar sus salidas:
 ```powershell
 python -B pruebas/validar_software.py
 ```
+
+El validador busca PlatformIO en el PATH y en su instalación habitual de Windows. También acepta `--platformio RUTA`. Devuelve **0** si las cinco comprobaciones aprueban, **1** si alguna falla y **2** si faltan herramientas. Guarda el commit de referencia y las huellas del código probado en el resumen; ese commit puede tener cambios locales aún sin confirmar.
 
 Se utiliza Ncat 7.991 instalado localmente en `.herramientas/ncat/`. El guion lo encuentra allí o en el PATH; también acepta `--ncat RUTA`. Los binarios no se incluyen en Git. [Origen y firma de instalación](documentacion/evidencias/software/instalacion_ncat.json).
 
@@ -111,6 +133,6 @@ Cargar cada proyecto con `pio run --project-dir sensor --target upload --upload-
 
 Usar WiFi de 2,4 GHz que permita comunicación entre los equipos. No conectar ECHO de 5 V directamente al GPIO. Las placas se alimentan por USB; la comunicación entre ellas pasa por la PC.
 
-Se mantienen: sensor inactivo 5 s; confirmación del actuador 1 s; apagado local sin órdenes 3 s; reconexión cada 2 s; registro 3 s y refresco de órdenes 1 s. La única llamada de envío TCP de bajo nivel está encapsulada en `ClienteTcp::enviarPendientes()` para que una red bloqueada no detenga esos plazos.
+Se mantienen: sensor inactivo 5 s; confirmación del actuador 1 s, incluyendo la cola de salida de la PC; apagado local sin órdenes 3 s; reconexión cada 2 s; registro 3 s y refresco de órdenes 1 s. En el sensor, la espera de confirmación empieza al aparecer lecturas pendientes y se renueva con cada RECIBIDO válido. La única llamada de envío TCP de bajo nivel está encapsulada en `ClienteTcp::enviarPendientes()` para que una red bloqueada no detenga esos plazos.
 
 El [protocolo](protocolo.md), el [plan](PLAN.md) y la [validación](documentacion/VALIDACION.md) completan la documentación. Las mediciones físicas y el informe del equipo siguen pendientes.

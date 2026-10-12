@@ -1,7 +1,7 @@
 Ncat: Version 7.991 ( https://nmap.org/ncat )
 APROBADO: registro, decimales, tres rangos y confirmaciones correlacionadas.
-APROBADO: SIN_ECO apaga y mantiene actividad.
-APROBADO: sensor inactivo cerrado tras aproximadamente 5.007 s reales.
+APROBADO: SIN_ECO recibido y orden de apagado entregada.
+APROBADO: sensor inactivo cerrado tras aproximadamente 5.005 s reales.
 APROBADO: reconexión, nuevo registro y secuencia reiniciada.
 APROBADO: reemplazo cierra la sesión anterior y conserva la nueva.
 APROBADO: mensaje sin registro y orden sin confirmación cierran la conexión.

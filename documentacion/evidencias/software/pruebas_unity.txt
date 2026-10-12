@@ -5,35 +5,48 @@ Processing test_actuador in native environment
 --------------------------------------------------------------------------------
 Building...
 Testing...
-pruebas\unity\test_actuador\../comprobar_cliente.h:135: comprobarProgramaCompleto	[PASSED]
---------------- native:test_actuador [PASSED] Took 2.42 seconds ---------------
+pruebas\unity\test_actuador\../comprobar_cliente.h:224: probarRegistroFragmentado	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:225: probarReconexionYLimpieza	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:226: probarDesconexionTcp	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:227: probarMensajeIncorrecto	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:228: probarEnvioBloqueado	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:229: probarRegistroSinRespuesta	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:234: probarActuacionYConfirmacionParcial	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:235: probarApagadoSinOrdenes	[PASSED]
+--------------- native:test_actuador [PASSED] Took 2.81 seconds ---------------
 
 Processing test_componentes in native environment
 --------------------------------------------------------------------------------
 Building...
 Testing...
-pruebas\unity\test_componentes\test_main.cpp:112: probarNumerosDelProtocolo	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:113: probarOrdenConParametros	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:114: probarConfirmacion	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:115: probarMensajesIncorrectos	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:116: probarColoresExclusivos	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:117: probarApagadoAntesDelCambio	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:118: probarApagadoYEstadoIncorrecto	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:119: probarConversionDelEco	[PASSED]
-pruebas\unity\test_componentes\test_main.cpp:120: probarAusenciaDeEcoYLimite	[PASSED]
--------------- native:test_componentes [PASSED] Took 2.07 seconds --------------
+pruebas\unity\test_componentes\test_main.cpp:124: probarNumerosDelProtocolo	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:125: probarOrdenConParametros	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:126: probarMensajesIncorrectos	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:127: probarColoresExclusivos	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:128: probarApagadoAntesDelCambio	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:129: probarApagadoYEstadoIncorrecto	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:130: probarConversionDelEco	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:131: probarAusenciaDeEcoYLimite	[PASSED]
+-------------- native:test_componentes [PASSED] Took 2.96 seconds --------------
 
 Processing test_sensor in native environment
 --------------------------------------------------------------------------------
 Building...
 Testing...
-pruebas\unity\test_sensor\../comprobar_cliente.h:135: comprobarProgramaCompleto	[PASSED]
----------------- native:test_sensor [PASSED] Took 1.96 seconds ----------------
+pruebas\unity\test_sensor\../comprobar_cliente.h:224: probarRegistroFragmentado	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:225: probarReconexionYLimpieza	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:226: probarDesconexionTcp	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:227: probarMensajeIncorrecto	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:228: probarEnvioBloqueado	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:229: probarRegistroSinRespuesta	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:231: probarMuestreoYConfirmaciones	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:232: probarEsperaConfirmacionTrasPausa	[PASSED]
+---------------- native:test_sensor [PASSED] Took 2.15 seconds ----------------
 
 =================================== SUMMARY ===================================
 Environment    Test              Status    Duration
 -------------  ----------------  --------  ------------
-native         test_actuador     PASSED    00:00:02.424
-native         test_componentes  PASSED    00:00:02.072
-native         test_sensor       PASSED    00:00:01.964
-================= 11 test cases: 11 succeeded in 00:00:06.460 =================
+native         test_actuador     PASSED    00:00:02.806
+native         test_componentes  PASSED    00:00:02.964
+native         test_sensor       PASSED    00:00:02.148
+================= 24 test cases: 24 succeeded in 00:00:07.918 =================

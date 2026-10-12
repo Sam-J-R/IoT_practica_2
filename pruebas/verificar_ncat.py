@@ -131,7 +131,7 @@ def principal():
         sensor.enviar(f"LECTURA numero={numero}, tiempo_ms=1000, distancia_cm=SIN_ECO")
         sensor.esperar(f"RECIBIDO numero={numero}")
         actuador.esperar_estado("APAGADO")
-        print("APROBADO: SIN_ECO apaga y mantiene actividad.")
+        print("APROBADO: SIN_ECO recibido y orden de apagado entregada.")
         inicio = time.monotonic()
         sensor.esperar_cierre(6)
         duracion = time.monotonic() - inicio
