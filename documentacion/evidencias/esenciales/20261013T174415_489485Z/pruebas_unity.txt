@@ -1,0 +1,55 @@
+Verbosity level can be increased via `-v, -vv, or -vvv` option
+Collected 3 tests
+
+Processing test_actuador in native environment
+--------------------------------------------------------------------------------
+Building...
+
+Processing test_componentes in native environment
+--------------------------------------------------------------------------------
+Building...
+
+Processing test_sensor in native environment
+--------------------------------------------------------------------------------
+Building...
+
+"gcc" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\unity_config_build\unity_config.o] Error 1
+"g++" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\test\test_actuador\test_main.o] Error 1
+"gcc" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\libcc0\Unity\unity.o] Error 1
+Building stage has failed, see errors above. Use `pio test -vvv` option to enable verbose output.
+--------------- native:test_actuador [ERRORED] Took 2.36 seconds ---------------
+"gcc" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+"g++" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\unity_config_build\unity_config.o] Error 1
+*** [.pio\build\native\test\test_componentes\test_main.o] Error 1
+"gcc" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\libcc0\Unity\unity.o] Error 1
+Building stage has failed, see errors above. Use `pio test -vvv` option to enable verbose output.
+------------- native:test_componentes [ERRORED] Took 2.10 seconds -------------
+"gcc" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\unity_config_build\unity_config.o] Error 1
+"g++" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\test\test_sensor\test_main.o] Error 1
+"gcc" no se reconoce como un comando interno o externo,
+programa o archivo por lotes ejecutable.
+*** [.pio\build\native\libcc0\Unity\unity.o] Error 1
+Building stage has failed, see errors above. Use `pio test -vvv` option to enable verbose output.
+---------------- native:test_sensor [ERRORED] Took 2.12 seconds ----------------
+=================================== SUMMARY ===================================
+Environment    Test              Status    Duration
+-------------  ----------------  --------  ------------
+native         test_actuador     ERRORED   00:00:02.358
+native         test_componentes  ERRORED   00:00:02.099
+native         test_sensor       ERRORED   00:00:02.117
+================== 3 test cases: 0 succeeded in 00:00:06.574 ==================

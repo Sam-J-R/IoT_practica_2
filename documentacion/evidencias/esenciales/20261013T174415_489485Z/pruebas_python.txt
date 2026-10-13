@@ -1,0 +1,32 @@
+test_advierte_evidencia_incompleta_y_no_infiere_muestreo_con_huecos (test_analizar_registro.PruebasAnalizador.test_advierte_evidencia_incompleta_y_no_infiere_muestreo_con_huecos) ... ok
+test_reloj_sensor_desbordado_o_discontinuo (test_analizar_registro.PruebasAnalizador.test_reloj_sensor_desbordado_o_discontinuo) ... ok
+test_separa_ejecuciones_y_frecuencias (test_analizar_registro.PruebasAnalizador.test_separa_ejecuciones_y_frecuencias) ... ok
+test_error_vacia_el_filtro_y_exige_tres_nuevas (test_control.PruebasControl.test_error_vacia_el_filtro_y_exige_tres_nuevas) ... ok
+test_espera_tres_lecturas_y_rechaza_un_pico (test_control.PruebasControl.test_espera_tres_lecturas_y_rechaza_un_pico) ... ok
+test_fronteras_y_datos_no_confiables (test_control.PruebasControl.test_fronteras_y_datos_no_confiables) ... ok
+test_colores_decimales_y_sin_eco (test_integracion.PruebasIntegracionHilos.test_colores_decimales_y_sin_eco) ... ok
+test_confirmacion_agotada (test_integracion.PruebasIntegracionHilos.test_confirmacion_agotada) ... ok
+test_confirmacion_incorrecta_rechazada (test_integracion.PruebasIntegracionHilos.test_confirmacion_incorrecta_rechazada) ... ok
+test_consola_bloqueada_no_detiene_tcp_ni_supervision (test_integracion.PruebasIntegracionHilos.test_consola_bloqueada_no_detiene_tcp_ni_supervision) ... ok
+test_desconexion_sensor_apaga_leds (test_integracion.PruebasIntegracionHilos.test_desconexion_sensor_apaga_leds) ... ok
+test_inactividad_sensor_apaga_leds (test_integracion.PruebasIntegracionHilos.test_inactividad_sensor_apaga_leds) ... ok
+test_reconexion_actuador_conserva_color (test_integracion.PruebasIntegracionHilos.test_reconexion_actuador_conserva_color) ... ok
+test_reconexiones_liberan_hilos_lectores_y_escritores (test_integracion.PruebasIntegracionHilos.test_reconexiones_liberan_hilos_lectores_y_escritores) ... ok
+test_reemplazo_de_sensor (test_integracion.PruebasIntegracionHilos.test_reemplazo_de_sensor) ... ok
+test_refresco_sin_nuevas_lecturas (test_integracion.PruebasIntegracionHilos.test_refresco_sin_nuevas_lecturas) ... ok
+test_secuencia_repetida_y_rol_equivocado (test_integracion.PruebasIntegracionHilos.test_secuencia_repetida_y_rol_equivocado) ... ok
+test_sensor_rechazado_apaga_antes_de_confirmar_color (test_integracion.PruebasIntegracionHilos.test_sensor_rechazado_apaga_antes_de_confirmar_color) ... ok
+test_datos_rechazados (test_protocolo.PruebasProtocolo.test_datos_rechazados) ... ok
+test_fragmentacion_concatenacion_y_crlf (test_protocolo.PruebasProtocolo.test_fragmentacion_concatenacion_y_crlf) ... ok
+test_limite_incluye_terminador (test_protocolo.PruebasProtocolo.test_limite_incluye_terminador) ... ok
+test_rechaza_codificacion_y_controles (test_protocolo.PruebasProtocolo.test_rechaza_codificacion_y_controles) ... ok
+test_cierre_no_espera_indefinidamente_al_disco (test_registro.PruebasRegistro.test_cierre_no_espera_indefinidamente_al_disco) ... ok
+test_error_de_disco_no_sale_al_productor_y_cierra_el_archivo (test_registro.PruebasRegistro.test_error_de_disco_no_sale_al_productor_y_cierra_el_archivo) ... ok
+test_cierre_total_a_medio_segundo_aunque_escritor_no_avance (test_robustez_servidor.PruebasRobustezServidor.test_cierre_total_a_medio_segundo_aunque_escritor_no_avance) ... ok
+test_confirmacion_interrumpida_tardia_no_renueva_el_plazo (test_robustez_servidor.PruebasRobustezServidor.test_confirmacion_interrumpida_tardia_no_renueva_el_plazo) ... ok
+test_fallo_inesperado_de_hilo_cierra_servicio_y_libera_sesiones (test_robustez_servidor.PruebasRobustezServidor.test_fallo_inesperado_de_hilo_cierra_servicio_y_libera_sesiones) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 6.545s
+
+OK

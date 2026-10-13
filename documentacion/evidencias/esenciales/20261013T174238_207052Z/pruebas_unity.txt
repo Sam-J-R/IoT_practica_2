@@ -1,0 +1,43 @@
+Verbosity level can be increased via `-v, -vv, or -vvv` option
+Collected 3 tests
+
+Processing test_actuador in native environment
+--------------------------------------------------------------------------------
+Building...
+
+Processing test_componentes in native environment
+--------------------------------------------------------------------------------
+Building...
+
+Processing test_sensor in native environment
+--------------------------------------------------------------------------------
+Building...
+
+[Errno 13] Permission denied: 'C:\\Users\\kathy\\.platformio\\platforms.lock'
+--------------- native:test_actuador [ERRORED] Took 0.10 seconds ---------------
+[Errno 13] Permission denied: 'C:\\Users\\kathy\\.platformio\\platforms.lock'
+------------- native:test_componentes [ERRORED] Took 0.02 seconds -------------
+[Errno 13] Permission denied: 'C:\\Users\\kathy\\.platformio\\platforms.lock'
+---------------- native:test_sensor [ERRORED] Took 0.02 seconds ----------------
+=================================== SUMMARY ===================================
+Environment    Test              Status    Duration
+-------------  ----------------  --------  ------------
+native         test_actuador     ERRORED   00:00:00.100
+native         test_componentes  ERRORED   00:00:00.022
+native         test_sensor       ERRORED   00:00:00.022
+================== 3 test cases: 0 succeeded in 00:00:00.144 ==================
+Exception ignored in atexit callback: <function _finalize at 0x000001B43DD66C00>
+Traceback (most recent call last):
+  File "C:\Users\kathy\.platformio\penv\Lib\site-packages\platformio\telemetry.py", line 323, in _finalize
+    postpone_events(telemetry.get_unsent_events())
+  File "C:\Users\kathy\.platformio\penv\Lib\site-packages\platformio\telemetry.py", line 361, in postpone_events
+    save_postponed_events(postponed_events[KEEP_MAX_REPORTS * -1 :])
+  File "C:\Users\kathy\.platformio\penv\Lib\site-packages\platformio\telemetry.py", line 346, in save_postponed_events
+    with app.State(state_path, lock=True) as state:
+  File "C:\Users\kathy\.platformio\penv\Lib\site-packages\platformio\app.py", line 102, in __enter__
+    self._lock_state_file()
+  File "C:\Users\kathy\.platformio\penv\Lib\site-packages\platformio\app.py", line 133, in _lock_state_file
+    raise exception.HomeDirPermissionsError(os.path.dirname(self.path)) from exc
+platformio.exception.HomeDirPermissionsError: The directory `C:\Users\kathy\.platformio\.cache` or its parent directory is not owned by the current user and PlatformIO can not store configuration data.
+Please check the permissions and owner of that directory.
+Otherwise, please remove manually `C:\Users\kathy\.platformio\.cache` directory and PlatformIO will create new from the current user.

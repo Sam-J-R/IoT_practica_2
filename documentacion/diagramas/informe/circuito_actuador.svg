@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Objeto actuador: tres LEDs con resistencias de 220 ohmios</title>
+<desc id="desc">GPIO 33, 25 y 26 alimentan respectivamente LED rojo, amarillo y verde mediante una resistencia de 220 ohmios por rama. Ánodos a la resistencia y cátodos a tierra común.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#304963"/></marker></defs>
+<rect width="1200" height="640" fill="white"/>
+<g font-family="Arial, sans-serif" fill="#182b43">
+<text x="48" y="48" font-size="27" font-weight="bold">Objeto actuador — circuito de señalización</text>
+<text x="48" y="79" font-size="17" fill="#526176">DOIT ESP32 DevKit v1 · tres ramas independientes · salida activa en HIGH</text>
+<rect x="60" y="125" width="270" height="390" rx="10" fill="#f1f5fa" stroke="#526b8b" stroke-width="2"/>
+<path d="M195 100 V125" stroke="#ba3445" stroke-width="3"/>
+<text x="218" y="113" font-size="16" fill="#9d2638">USB · 5 V</text>
+<text x="195" y="163" text-anchor="middle" font-size="23" font-weight="bold">ESP32 actuador</text>
+<text x="195" y="187" text-anchor="middle" font-size="14" fill="#526176">Lógica y salidas: 3,3 V</text>
+<g fill="none" stroke="#304963" stroke-width="3">
+<path d="M330 225 H460 M550 225 H700 M740 225 H1020 V490 H330"/>
+<path d="M330 335 H460 M550 335 H700 M740 335 H1020"/>
+<path d="M330 445 H460 M550 445 H700 M740 445 H1020"/>
+<rect x="460" y="211" width="90" height="28" fill="white"/>
+<rect x="460" y="321" width="90" height="28" fill="white"/>
+<rect x="460" y="431" width="90" height="28" fill="white"/>
+<path d="M700 202 L738 225 L700 248 Z" fill="#f4bbbb"/><path d="M740 201 V249"/>
+<path d="M700 312 L738 335 L700 358 Z" fill="#ffe19c"/><path d="M740 311 V359"/>
+<path d="M700 422 L738 445 L700 468 Z" fill="#b5e1be"/><path d="M740 421 V469"/>
+<g marker-end="url(#arrow)" stroke-width="2">
+<path d="M716 198 L740 174"/><path d="M738 204 L762 180"/>
+<path d="M716 308 L740 284"/><path d="M738 314 L762 290"/>
+<path d="M716 418 L740 394"/><path d="M738 424 L762 400"/>
+</g>
+<path d="M870 490 V512 M848 512 H892 M855 521 H885 M863 530 H877"/>
+</g>
+<g fill="#304963"><circle cx="1020" cy="335" r="5"/><circle cx="1020" cy="445" r="5"/><circle cx="870" cy="490" r="5"/></g>
+<g font-size="18">
+<text x="310" y="230" text-anchor="end">GPIO 33</text><text x="310" y="340" text-anchor="end">GPIO 25</text><text x="310" y="450" text-anchor="end">GPIO 26</text><text x="310" y="495" text-anchor="end">GND</text>
+<text x="505" y="196" text-anchor="middle">R1 · 220 Ω</text><text x="505" y="306" text-anchor="middle">R2 · 220 Ω</text><text x="505" y="416" text-anchor="middle">R3 · 220 Ω</text>
+<text x="817" y="213" fill="#ae253b">D1 · ROJO</text><text x="817" y="323" fill="#956211">D2 · AMARILLO</text><text x="817" y="433" fill="#21773a">D3 · VERDE</text>
+</g>
+<g font-size="14" text-anchor="middle" fill="#526176"><text x="676" y="259">A (+)</text><text x="770" y="259">K (−)</text><text x="676" y="369">A (+)</text><text x="770" y="369">K (−)</text><text x="676" y="479">A (+)</text><text x="770" y="479">K (−)</text></g>
+<rect x="48" y="555" width="1104" height="53" rx="8" fill="#edf4fb" stroke="#9bb4cd"/>
+<text x="68" y="578" font-size="16">A = ánodo; K = cátodo. Flechas salientes: emisión de luz. Cátodos conectados a GND.</text>
+<text x="68" y="599" font-size="16">El firmware apaga las tres salidas antes de activar un color. Las resistencias de los LEDs se conservan.</text>
+</g></svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Objeto sensor: montaje declarado sin resistor en Echo</title>
+<desc id="desc">HC-SR04 alimentado a 5 V y tierra común con ESP32. Trigger conectado a GPIO 14 y Echo directamente a GPIO 27. La conexión Echo no está validada eléctricamente.</desc>
+<rect width="1200" height="640" fill="white"/>
+<g font-family="Arial, sans-serif" fill="#182b43">
+<text x="48" y="48" font-size="27" font-weight="bold">Objeto sensor — conexiones declaradas</text>
+<text x="48" y="79" font-size="17" fill="#526176">HC-SR04 + DOIT ESP32 DevKit v1 · GPIO según firmware · sin resistor en Echo</text>
+<rect x="60" y="125" width="290" height="355" rx="10" fill="#f1f5fa" stroke="#526b8b" stroke-width="2"/>
+<rect x="850" y="125" width="290" height="355" rx="10" fill="#f1f5fa" stroke="#526b8b" stroke-width="2"/>
+<path d="M995 100 V125" stroke="#ba3445" stroke-width="3"/>
+<text x="976" y="113" text-anchor="end" font-size="16" fill="#9d2638">USB · 5 V</text>
+<text x="995" y="190" text-anchor="middle" font-size="14" fill="#526176">Regulación y lógica interna: 3,3 V</text>
+<text x="205" y="166" text-anchor="middle" font-size="24" font-weight="bold">HC-SR04</text>
+<text x="995" y="166" text-anchor="middle" font-size="24" font-weight="bold">ESP32 sensor</text>
+<g font-size="18">
+<text x="330" y="218" text-anchor="end">VCC</text><text x="870" y="218">5 V / VIN</text>
+<text x="330" y="293" text-anchor="end">TRIG</text><text x="870" y="293">GPIO 14 · salida</text>
+<text x="330" y="368" text-anchor="end">ECHO</text><text x="870" y="368">GPIO 27 · entrada</text>
+<text x="330" y="443" text-anchor="end">GND</text><text x="870" y="443">GND</text>
+</g>
+<path d="M350 215 H850" stroke="#ba3445" stroke-width="3"/>
+<path d="M350 290 H850" stroke="#246f99" stroke-width="3"/>
+<path d="M350 365 H850" stroke="#b36a18" stroke-width="3"/>
+<path d="M350 440 H850 M600 440 V476 M578 476 H622 M585 485 H615 M593 494 H607" stroke="#283e55" stroke-width="3" fill="none"/>
+<circle cx="600" cy="440" r="5" fill="#283e55"/>
+<g font-size="16" text-anchor="middle">
+<text x="600" y="199" fill="#9d2638">Alimentación nominal: 5 V</text>
+<text x="600" y="274" fill="#246f99">Trigger: ESP32 → sensor · lógica 3,3 V</text>
+<text x="600" y="349" fill="#985916">Echo: sensor → ESP32 · 5 V nominales</text>
+<text x="600" y="424">Referencia común de tierra</text>
+</g>
+<rect x="48" y="529" width="1104" height="80" rx="8" fill="#fff4e8" stroke="#d09b55"/>
+<text x="69" y="554" font-size="17" font-weight="bold" fill="#824615">Esquema descriptivo del montaje indicado; no acredita compatibilidad eléctrica.</text>
+<text x="69" y="580" font-size="16" fill="#824615">Una señal Echo de 5 V no es compatible con la entrada del ESP32 a 3,3 V. Verificar antes de energizar.</text>
+</g></svg>
