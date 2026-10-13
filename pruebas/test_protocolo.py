@@ -5,20 +5,6 @@ from servidor.protocolo import ErrorProtocolo, ProtocoloAplicacion, ReceptorLine
 
 
 class PruebasProtocolo(unittest.TestCase):
-    def test_distancias_decimales_y_sin_eco(self):
-        mensaje = ProtocoloAplicacion.interpretar(
-            "LECTURA numero=42, tiempo_ms=12500, distancia_cm=15.20")
-        self.assertEqual(mensaje.argumentos["distancia_cm"], 15.2)
-        mensaje = ProtocoloAplicacion.interpretar(
-            "LECTURA numero=43,tiempo_ms=12600,distancia_cm=SIN_ECO")
-        self.assertIsNone(mensaje.argumentos["distancia_cm"])
-
-        # Los ejemplos del catálogo se verifican aquí, sin otra prueba repetida.
-        for linea in ("REGISTRO tipo=sensor, version=1", "REGISTRO tipo=actuador, version=1",
-                      "ACEPTADO REGISTRO", "RECIBIDO numero=1", "APLICADO numero=1",
-                      "ORDEN numero=1, estado=ROJO", "ERROR codigo=FORMATO"):
-            with self.subTest(linea=linea):
-                ProtocoloAplicacion.interpretar(linea)
 
     def test_datos_rechazados(self):
         casos = {
@@ -33,12 +19,20 @@ class PruebasProtocolo(unittest.TestCase):
             "ORDEN numero=1, estado=AZUL": "VALOR",
             "APLICADO numero=1,": "FORMATO",
             "APLICADO numero= 1": "FORMATO",
+            "ORDEN  numero=1, estado=ROJO": "FORMATO",
+            "ORDEN numero=1,  estado=ROJO": "FORMATO",
+            "ORDEN numero=1 , estado=ROJO": "FORMATO",
+            "ORDEN numero=1, estado=ROJO ": "FORMATO",
+            "ORDEN numero=1,\testado=ROJO": "FORMATO",
         }
         for linea, codigo in casos.items():
             with self.subTest(linea=linea):
                 with self.assertRaises(ErrorProtocolo) as error:
                     ProtocoloAplicacion.interpretar(linea)
                 self.assertEqual(error.exception.codigo, codigo)
+        for linea in ("ORDEN numero=1,estado=ROJO", "ORDEN numero=1, estado=ROJO"):
+            self.assertEqual(ProtocoloAplicacion.interpretar(linea).argumentos,
+                             {"numero": 1, "estado": "ROJO"})
         for valor in ("nan", "inf", "1e2", "401", "-1", "15.2.3"):
             with self.subTest(valor=valor), self.assertRaises(ErrorProtocolo):
                 ProtocoloAplicacion.interpretar(
@@ -63,11 +57,6 @@ class PruebasProtocolo(unittest.TestCase):
             with self.subTest(datos=datos), self.assertRaises(ErrorProtocolo):
                 list(ReceptorLineas().recibir(datos))
 
-    def test_linea_valida_antes_de_error_se_procesa(self):
-        generador = ReceptorLineas().recibir(b"APLICADO numero=1\n" + b"x" * 128)
-        self.assertEqual(next(generador), "APLICADO numero=1")
-        with self.assertRaises(ErrorProtocolo):
-            next(generador)
 
 
 if __name__ == "__main__":

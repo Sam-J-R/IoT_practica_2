@@ -1,52 +1,21 @@
 """Servidor TCP con hilos para clientes y supervisión de seguridad.
 
-Un hilo acepta clientes, cada conexión tiene un hilo lector y un hilo
-supervisor controla los tiempos. Un RLock protege roles, filtro y órdenes.
+Un hilo acepta clientes, cada conexión tiene lector y escritor, y un hilo
+supervisa los tiempos. El registro de eventos se escribe por separado.
+Un RLock protege roles, filtro y órdenes.
 """
 import argparse
-from datetime import datetime, timezone
-import json
 import logging
 from pathlib import Path
 from queue import Empty, Full, Queue
 import socket
 import threading
 import time
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional
 
 from .control import ConfiguracionServidor, ControlDistancia, EstadoLed
 from .protocolo import ErrorProtocolo, ProtocoloAplicacion, ReceptorLineas
-
-
-class RegistroPruebas:
-    """Registra eventos JSONL sin mezclar escrituras entre hilos."""
-
-    def __init__(self, ruta: Optional[Union[Path, str]] = None) -> None:
-        self.bloqueo = threading.Lock()
-        self.archivo = None
-        if ruta:
-            ruta_path = Path(ruta)
-            ruta_path.parent.mkdir(parents=True, exist_ok=True)
-            self.archivo = ruta_path.open("a", encoding="utf-8")
-
-    def registrar(self, evento: str, **datos: Any) -> None:
-        fila = {
-            "fecha_utc": datetime.now(timezone.utc).isoformat(),
-            "tiempo_monotonico": time.monotonic(),
-            "evento": evento,
-            **datos,
-        }
-        with self.bloqueo:
-            logging.info("%s %s", evento, datos)
-            if self.archivo:
-                self.archivo.write(json.dumps(fila, ensure_ascii=False, allow_nan=False) + "\n")
-                self.archivo.flush()
-
-    def cerrar(self) -> None:
-        with self.bloqueo:
-            if self.archivo:
-                self.archivo.close()
-                self.archivo = None
+from .registro import RegistroPruebas
 
 
 class SesionCliente:
@@ -64,9 +33,10 @@ class SesionCliente:
         self.numero_lectura = 0
         self.numero_orden = 0
         self.numero_pendiente = 0
-        self.ordenes_interrumpidas: set[int] = set()
+        self.numero_interrumpido = 0
         self.salida: Queue[tuple[bytes, str, bool]] = Queue(maxsize=32)
         self.terminando = False
+        self.limite_cierre = 0.0
         self.estado_pendiente: EstadoLed = EstadoLed.APAGADO
         self.inicio_orden = 0.0
         self.estado_confirmado: Optional[EstadoLed] = None
@@ -95,6 +65,7 @@ class ServidorTcp:
         self.bloqueo = threading.RLock()
         self.detener = threading.Event()
         self.hilos: list[threading.Thread] = []
+        self.error_hilo: Optional[str] = None
 
     @property
     def puerto(self) -> int:
@@ -122,21 +93,43 @@ class ServidorTcp:
 
     def _iniciar_hilo(self, tarea: Callable[..., None], nombre: str,
                       *args: Any) -> None:
-        hilo = threading.Thread(target=tarea, args=args, name=nombre, daemon=True)
-        self.hilos.append(hilo)
-        hilo.start()
+        hilo = threading.Thread(target=self._ejecutar_hilo, args=(tarea, args),
+                                name=nombre, daemon=True)
+        with self.bloqueo:
+            self.hilos.append(hilo)
+            try:
+                hilo.start()
+            except Exception:
+                self.hilos.remove(hilo)
+                raise
+
+    def _ejecutar_hilo(self, tarea: Callable[..., None], args: tuple[Any, ...]) -> None:
+        try:
+            tarea(*args)
+        except Exception as error:
+            # No mantener el servicio abierto si pierde un hilo por un fallo inesperado.
+            with self.bloqueo:
+                if not self.detener.is_set():
+                    self.error_hilo = f"{threading.current_thread().name}: {error}"
+                    self.registro.registrar("FALLO_HILO", detalle=self.error_hilo)
+                    self.detener.set()
+                    self._cerrar_conexiones()
+        finally:
+            with self.bloqueo:
+                self.hilos.remove(threading.current_thread())
 
     def _aceptar(self) -> None:
         while not self.detener.is_set():
             try:
-                if self.escucha is None:
+                escucha = self.escucha
+                if escucha is None:
                     return
-                conexion, direccion = self.escucha.accept()
+                conexion, direccion = escucha.accept()
             except socket.timeout:
                 continue
             except OSError:
                 if not self.detener.is_set():
-                    logging.exception("Error aceptando conexiones")
+                    raise
                 return
             conexion.settimeout(0.25)
             conexion.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -170,7 +163,7 @@ class ServidorTcp:
             try:
                 for linea in sesion.receptor.recibir(datos):
                     with self.bloqueo:
-                        if sesion.cerrada:
+                        if sesion.cerrada or sesion.terminando:
                             break
                         self._procesar(sesion, linea)
             except ErrorProtocolo as error:
@@ -207,6 +200,9 @@ class ServidorTcp:
         if sesion.cerrada or sesion.terminando:
             return False
         datos = ProtocoloAplicacion.codificar(mensaje)
+        if cerrar_despues:
+            sesion.terminando = True
+            sesion.limite_cierre = self.reloj() + self.configuracion.espera_cierre
         try:
             sesion.salida.put_nowait((datos, mensaje, cerrar_despues))
         except Full:
@@ -214,26 +210,38 @@ class ServidorTcp:
             return False
         self.registro.registrar("MENSAJE_ENCOLADO", sesion=sesion.identificador,
                                 mensaje=mensaje)
-        if cerrar_despues:
-            sesion.terminando = True
         return True
 
     def _rechazar(self, sesion: SesionCliente, codigo: str) -> None:
+        if sesion.cerrada or sesion.terminando:
+            return
+        # La seguridad no depende de que el cliente llegue a leer ERROR.
+        self._retirar_rol(sesion)
+        while True:
+            try:
+                sesion.salida.get_nowait()
+            except Empty:
+                break
         self.registro.registrar("ERROR_PROTOCOLO", sesion=sesion.identificador, codigo=codigo)
-        # Dejar que el escritor transmita ERROR antes de cerrar el socket.
+        # Solo queda ERROR en cola; un envío ya iniciado no se puede retirar.
         if not self._enviar(sesion, f"ERROR codigo={codigo}", cerrar_despues=True):
             self._cerrar_sesion(sesion, "ERROR_PROTOCOLO")
 
-    def _cerrar_sesion(self, sesion: SesionCliente, motivo: str) -> None:
-        if sesion.cerrada:
-            return
-        sesion.cerrada = True
-        self.sesiones.pop(sesion.conexion, None)
+    def _retirar_rol(self, sesion: SesionCliente) -> None:
+        """Retira solo al dueño actual del rol; conserva el rol para el registro."""
         if self.roles.get(sesion.rol) is sesion:
             del self.roles[sesion.rol]
             if sesion.rol == "sensor":
                 self.control.invalidar()
                 self._solicitar_estado()
+
+    def _cerrar_sesion(self, sesion: SesionCliente, motivo: str) -> None:
+        if sesion.cerrada:
+            return
+        sesion.cerrada = True
+        sesion.numero_interrumpido = 0
+        self.sesiones.pop(sesion.conexion, None)
+        self._retirar_rol(sesion)
         try:
             sesion.conexion.shutdown(socket.SHUT_RDWR)
         except OSError:
@@ -249,11 +257,11 @@ class ServidorTcp:
         interrumpida = False
         if actuador.numero_pendiente:
             # APAGADO tiene prioridad incluso si falta el APLICADO del color anterior.
-            # Las confirmaciones viejas se aceptarán sin alterar la orden vigente.
+            # Solo puede haber un color interrumpido: APAGADO bloquea nuevas órdenes.
             if not (self.control.estado == EstadoLed.APAGADO and
                     actuador.estado_pendiente != EstadoLed.APAGADO):
                 return
-            actuador.ordenes_interrumpidas.add(actuador.numero_pendiente)
+            actuador.numero_interrumpido = actuador.numero_pendiente
             interrumpida = True
             self.registro.registrar("ORDEN_INTERRUMPIDA", sesion=actuador.identificador,
                                     numero=actuador.numero_pendiente)
@@ -306,8 +314,10 @@ class ServidorTcp:
                 filtrada_cm=self.control.distancia_filtrada, estado=str(estado))
             self._solicitar_estado()
         elif mensaje.comando == "APLICADO" and sesion.rol == "actuador":
-            if argumentos["numero"] in sesion.ordenes_interrumpidas:
-                sesion.ordenes_interrumpidas.remove(argumentos["numero"])
+            if argumentos["numero"] == sesion.numero_interrumpido:
+                if self.reloj() - sesion.inicio_orden >= self.configuracion.espera_confirmacion:
+                    raise ErrorProtocolo("CONFIRMACION_TARDIA")
+                sesion.numero_interrumpido = 0
                 self.registro.registrar("APLICADO_ANTERIOR", sesion=sesion.identificador,
                                         numero=argumentos["numero"])
                 return
@@ -322,6 +332,8 @@ class ServidorTcp:
                                     estado=str(sesion.estado_pendiente),
                                     latencia_confirmacion_ms=(self.reloj() - sesion.inicio_orden) * 1000)
             sesion.numero_pendiente = 0
+            # TCP mantiene el orden: tras confirmar APAGADO no esperamos el color viejo.
+            sesion.numero_interrumpido = 0
             self._solicitar_estado()
         elif mensaje.comando == "ERROR":
             self._cerrar_sesion(sesion, "ERROR_CLIENTE_" + argumentos["codigo"])
@@ -332,6 +344,10 @@ class ServidorTcp:
         ahora = self.reloj()
         c = self.configuracion
         for sesion in list(self.sesiones.values()):
+            if sesion.terminando:
+                if ahora >= sesion.limite_cierre:
+                    self._cerrar_sesion(sesion, "CIERRE_TIEMPO_AGOTADO")
+                continue
             if not sesion.rol and ahora - sesion.creada >= c.espera_registro:
                 self._cerrar_sesion(sesion, "REGISTRO_TIEMPO_AGOTADO")
             elif sesion.rol == "sensor" and ahora - sesion.ultima_lectura >= c.inactividad_sensor:
@@ -347,22 +363,27 @@ class ServidorTcp:
             with self.bloqueo:
                 self._temporizadores()
 
+    def _cerrar_conexiones(self) -> None:
+        """Se llama con el bloqueo adquirido y la detención solicitada."""
+        # Cerrar primero el actuador impide generar órdenes durante el cierre.
+        actuador = self.roles.get("actuador")
+        if actuador:
+            self._cerrar_sesion(actuador, "SERVIDOR_DETENIDO")
+        for sesion in list(self.sesiones.values()):
+            self._cerrar_sesion(sesion, "SERVIDOR_DETENIDO")
+        if self.escucha:
+            self.escucha.close()
+            self.escucha = None
+
     def cerrar(self) -> None:
         self.detener.set()
         with self.bloqueo:
-            # Cerrar primero el actuador impide generar órdenes durante el cierre.
-            actuador = self.roles.get("actuador")
-            if actuador:
-                self._cerrar_sesion(actuador, "SERVIDOR_DETENIDO")
-            for sesion in list(self.sesiones.values()):
-                self._cerrar_sesion(sesion, "SERVIDOR_DETENIDO")
-            if self.escucha:
-                self.escucha.close()
-                self.escucha = None
-        for hilo in self.hilos:
+            self._cerrar_conexiones()
+            hilos = list(self.hilos)
+        limite = time.monotonic() + 0.6
+        for hilo in hilos:
             if hilo is not threading.current_thread():
-                hilo.join(timeout=0.6)
-        self.hilos.clear()
+                hilo.join(timeout=max(0.0, limite - time.monotonic()))
         self.registro.registrar("SERVIDOR_DETENIDO")
         self.registro.cerrar()
 
@@ -379,9 +400,11 @@ def principal() -> None:
         RegistroPruebas(argumentos.registro))
     try:
         servidor.iniciar()
-        while True:
-            time.sleep(0.2)
+        while not servidor.detener.wait(0.2):
+            pass
+        if servidor.error_hilo:
+            raise RuntimeError("Servidor detenido por fallo interno: " + servidor.error_hilo)
     except KeyboardInterrupt:
-        logging.info("Detención solicitada")
+        servidor.registro.registrar("DETENCION_SOLICITADA")
     finally:
         servidor.cerrar()

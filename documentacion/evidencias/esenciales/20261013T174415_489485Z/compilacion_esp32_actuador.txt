@@ -1,0 +1,105 @@
+Processing esp32_actuador (platform: espressif32@7.0.1; board: esp32doit-devkit-v1; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing throwtheswitch/Unity @ ^2.6.1
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Library Manager: Unity@2.6.1 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32doit-devkit-v1.html
+PLATFORM: Espressif 32 (7.0.1) > DOIT ESP32 DEVKIT V1
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 2.41100.260830 (4.11.0) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- WiFi @ 2.0.0
+Building in release mode
+Compiling .pio\build\esp32_actuador\src\actuador\IndicadorLeds.cpp.o
+Compiling .pio\build\esp32_actuador\src\actuador\main.cpp.o
+Building .pio\build\esp32_actuador\bootloader.bin
+Generating partitions .pio\build\esp32_actuador\partitions.bin
+esptool.py v4.11.0
+Creating esp32 image...
+Merged 1 ELF section
+Successfully created esp32 image.
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFi.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiAP.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiClient.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiGeneric.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiMulti.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiSTA.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiScan.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiServer.cpp.o
+Compiling .pio\build\esp32_actuador\libd45\WiFi\WiFiUdp.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\Esp.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\FirmwareMSC.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\FunctionalInterrupt.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\HWCDC.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\HardwareSerial.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\IPAddress.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\IPv6Address.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\MD5Builder.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\Print.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\Stream.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\StreamString.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\Tone.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\USB.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\USBCDC.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\USBMSC.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\WMath.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\WString.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\base64.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\cbuf.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-adc.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-bt.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-cpu.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-dac.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-gpio.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-i2c-slave.c.o
+Archiving .pio\build\esp32_actuador\libd45\libWiFi.a
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-i2c.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-ledc.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-matrix.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-misc.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-psram.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-rgb-led.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-rmt.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-sigmadelta.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-spi.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-time.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-timer.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-tinyusb.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-touch.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\esp32-hal-uart.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\firmware_msc_fat.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\libb64\cdecode.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\libb64\cencode.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\main.cpp.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\stdlib_noniso.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\wiring_pulse.c.o
+Compiling .pio\build\esp32_actuador\FrameworkArduino\wiring_shift.c.o
+Archiving .pio\build\esp32_actuador\libFrameworkArduino.a
+Linking .pio\build\esp32_actuador\firmware.elf
+Retrieving maximum program size .pio\build\esp32_actuador\firmware.elf
+Checking size .pio\build\esp32_actuador\firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]  13.7% (used 44848 bytes from 327680 bytes)
+Flash: [======    ]  57.3% (used 751393 bytes from 1310720 bytes)
+Building .pio\build\esp32_actuador\firmware.bin with action:
+  "$PYTHONEXE" "$OBJCOPY" --chip esp32 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 4MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES
+Building .pio\build\esp32_actuador\firmware.bin
+esptool.py v4.11.0
+Creating esp32 image...
+Merged 27 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 44.39 seconds =========================
+
+Environment     Status    Duration
+--------------  --------  ------------
+esp32_actuador  SUCCESS   00:00:44.388
+========================= 1 succeeded in 00:00:44.388 =========================

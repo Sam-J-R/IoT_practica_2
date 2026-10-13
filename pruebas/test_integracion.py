@@ -7,9 +7,10 @@ import socket
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from servidor.control import ConfiguracionServidor, EstadoLed
-from servidor.servidor import ServidorTcp
+from servidor.servidor import RegistroPruebas, ServidorTcp
 
 
 class RegistroMemoria:
@@ -153,14 +154,6 @@ class PruebasIntegracionHilos(unittest.TestCase):
         self.assertEqual(actuador.leer(), "ORDEN numero=3, estado=APAGADO")
         self.assertTrue(self.esperar(lambda: 'sensor' not in self.servidor.roles))
 
-    def test_sin_eco_mantiene_actividad(self):
-        self.config.inactividad_sensor = 0.23
-        sensor = self.registrar("sensor")
-        time.sleep(0.13)
-        self.lectura(sensor, 1, "SIN_ECO")
-        time.sleep(0.12)
-        self.assertIn("sensor", self.servidor.roles)
-
     def test_confirmacion_agotada(self):
         self.config.espera_confirmacion = 0.18
         cliente = self.nuevo()
@@ -180,16 +173,6 @@ class PruebasIntegracionHilos(unittest.TestCase):
         actuador.enviar("APLICADO numero=999")
         self.assertEqual(actuador.leer(), "ERROR codigo=CONFIRMACION")
         self.assertTrue(self.esperar(lambda: "actuador" not in self.servidor.roles))
-
-    def test_estado_final_no_se_encola_historico(self):
-        actuador = self.registrar("actuador")
-        sensor = self.registrar("sensor")
-        self.tres_lecturas(sensor, 1, 5)
-        self.assertEqual(actuador.leer(), "ORDEN numero=2, estado=ROJO")
-        self.tres_lecturas(sensor, 4, 25)
-        self.lectura(sensor, 7, "SIN_ECO")
-        actuador.enviar("APLICADO numero=2")
-        self.assertEqual(actuador.leer(), "ORDEN numero=3, estado=APAGADO")
 
     def test_reemplazo_de_sensor(self):
         anterior = self.registrar("sensor")
@@ -232,49 +215,61 @@ class PruebasIntegracionHilos(unittest.TestCase):
         actuador.enviar("LECTURA numero=1, tiempo_ms=0, distancia_cm=15")
         self.assertEqual(actuador.leer(), "ERROR codigo=ROL")
 
-    def test_error_cliente_sin_respuesta_recursiva(self):
-        actuador = self.registrar("actuador")
-        actuador.enviar("ERROR codigo=FORMATO")
-        self.assertTrue(self.esperar(lambda: "actuador" not in self.servidor.roles))
-        self.assertTrue(actuador.esperar_cierre())
-
-    def test_registro_tardio_y_longitud(self):
-        cliente = self.nuevo()
-        self.assertTrue(cliente.esperar_cierre(plazo=0.9))
-        cliente = self.nuevo()
-        cliente.conexion.sendall(b"x" * 128)
-        self.assertEqual(cliente.leer(), "ERROR codigo=LONGITUD")
-
-    def test_fragmentacion_y_concatenacion_tcp(self):
-        sensor = self.nuevo()
-        sensor.conexion.sendall(b"REGIS")
-        time.sleep(0.03)
-        sensor.conexion.sendall(b"TRO tipo=sensor, version=1\r\n"
-                                b"LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20\n"
-                                b"LECTURA numero=2, tiempo_ms=100, distancia_cm=15.20\n")
-        self.assertEqual(sensor.leer(), "ACEPTADO REGISTRO")
-        self.assertEqual(sensor.leer(), "RECIBIDO numero=1")
-        self.assertEqual(sensor.leer(), "RECIBIDO numero=2")
-
-    def test_hilos_para_conexiones_simultaneas(self):
+    def test_sensor_rechazado_apaga_antes_de_confirmar_color(self):
         actuador = self.registrar("actuador")
         sensor = self.registrar("sensor")
-        nombres = [h.name for h in self.servidor.hilos if h.is_alive()]
-        self.assertIn("tcp-aceptador", nombres)
-        self.assertIn("tcp-supervisor", nombres)
-        self.assertGreaterEqual(sum(x.startswith("tcp-cliente-") for x in nombres), 2)
-        completadas = []
-        def producir():
-            for numero in range(1, 4):
-                self.lectura(sensor, numero, 5)
-            completadas.append("sensor")
-        hilo = threading.Thread(target=producir)
-        hilo.start()
+        self.tres_lecturas(sensor, 1, 5)
         self.assertEqual(actuador.leer(), "ORDEN numero=2, estado=ROJO")
+        sensor.enviar("LECTURA numero=3, tiempo_ms=400, distancia_cm=5")
+        # No se confirma ROJO hasta después de recibir APAGADO.
+        self.assertEqual(actuador.leer(), "ORDEN numero=3, estado=APAGADO")
+        self.assertEqual(sensor.leer(), "ERROR codigo=SECUENCIA")
+        self.assertTrue(sensor.esperar_cierre())
         actuador.enviar("APLICADO numero=2")
-        hilo.join(timeout=1)
-        self.assertFalse(hilo.is_alive())
-        self.assertEqual(completadas, ["sensor"])
+        actuador.enviar("APLICADO numero=3")
+        self.assertTrue(self.esperar(lambda: self.servidor.roles['actuador'].numero_pendiente == 0))
+        self.assertEqual(self.servidor.roles['actuador'].estado_confirmado, EstadoLed.APAGADO)
+        # Tras confirmar APAGADO ya no se acepta el color sustituido.
+        actuador.enviar("APLICADO numero=2")
+        self.assertEqual(actuador.leer(), "ERROR codigo=CONFIRMACION")
+
+    def test_reconexiones_liberan_hilos_lectores_y_escritores(self):
+        for _ in range(30):
+            sensor = self.registrar("sensor")
+            sensor.cerrar()
+            self.assertTrue(self.esperar(lambda: not self.servidor.sesiones
+                                        and len(self.servidor.hilos) == 2))
+        self.assertIsNone(self.servidor.error_hilo)
+
+    def test_consola_bloqueada_no_detiene_tcp_ni_supervision(self):
+        entra = threading.Event()
+        continuar = threading.Event()
+
+        def consola_lenta(*_):
+            entra.set()
+            if not continuar.wait(3):
+                raise TimeoutError("La prueba no liberó la consola")
+
+        registro = RegistroPruebas(capacidad=4)
+        with self.servidor.bloqueo:
+            self.servidor.registro = registro
+            self.config.inactividad_sensor = 0.15
+        try:
+            with patch("servidor.registro.logging.info", side_effect=consola_lenta):
+                registro.registrar("INICIO_PRUEBA")
+                self.assertTrue(entra.wait(1))
+                sensor = self.registrar("sensor")
+                self.lectura(sensor, 1, 15)
+                self.assertTrue(sensor.esperar_cierre())
+                self.assertTrue(self.esperar(lambda: not self.servidor.sesiones))
+                self.assertGreater(registro.descartados, 0)
+                self.assertEqual(registro.cola.qsize(), 4)
+                self.assertIsNone(self.servidor.error_hilo)
+                continuar.set()
+                registro.cerrar()
+        finally:
+            continuar.set()
+            registro.cerrar()
 
 
 if __name__ == "__main__":

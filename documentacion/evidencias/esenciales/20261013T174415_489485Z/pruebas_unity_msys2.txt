@@ -1,0 +1,45 @@
+Verbosity level can be increased via `-v, -vv, or -vvv` option
+Collected 3 tests
+
+Processing test_actuador in native environment
+--------------------------------------------------------------------------------
+Building...
+Testing...
+pruebas\unity\test_actuador\../comprobar_cliente.h:226: probarReconexionYLimpieza	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:228: probarDesconexionTcp	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:230: probarMensajeIncorrecto	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:241: probarActuacionYConfirmacionParcial	[PASSED]
+pruebas\unity\test_actuador\../comprobar_cliente.h:242: probarApagadoSinOrdenes	[PASSED]
+--------------- native:test_actuador [PASSED] Took 9.71 seconds ---------------
+
+Processing test_componentes in native environment
+--------------------------------------------------------------------------------
+Building...
+Testing...
+pruebas\unity\test_componentes\test_main.cpp:92: probarNumerosDelProtocolo	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:93: probarMensajesIncorrectos	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:94: probarColoresExclusivos	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:95: probarApagadoYEstadoIncorrecto	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:96: probarConversionDelEco	[PASSED]
+pruebas\unity\test_componentes\test_main.cpp:97: probarAusenciaDeEcoYLimite	[PASSED]
+-------------- native:test_componentes [PASSED] Took 3.56 seconds --------------
+
+Processing test_sensor in native environment
+--------------------------------------------------------------------------------
+Building...
+Testing...
+pruebas\unity\test_sensor\../comprobar_cliente.h:226: probarReconexionYLimpieza	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:230: probarMensajeIncorrecto	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:232: probarEnvioBloqueado	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:235: probarRegistroSinRespuesta	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:238: probarMuestreoYConfirmaciones	[PASSED]
+pruebas\unity\test_sensor\../comprobar_cliente.h:239: probarEsperaConfirmacionTrasPausa	[PASSED]
+---------------- native:test_sensor [PASSED] Took 3.67 seconds ----------------
+
+=================================== SUMMARY ===================================
+Environment    Test              Status    Duration
+-------------  ----------------  --------  ------------
+native         test_actuador     PASSED    00:00:09.708
+native         test_componentes  PASSED    00:00:03.560
+native         test_sensor       PASSED    00:00:03.670
+================= 17 test cases: 17 succeeded in 00:00:16.938 =================
