@@ -298,7 +298,7 @@ Desde la raíz del repositorio:
 python -B -m unittest discover -s pruebas -p "test_*.py" -v
 ```
 
-Las pruebas de integración usan sockets TCP reales en localhost para representar ambos clientes. Comprueban registro, estados, confirmaciones, apagado y reconexión. Ver [validación y evidencias](documentacion/VALIDACION.md).
+Las pruebas de integración usan sockets TCP reales en localhost para representar ambos clientes. Comprueban registro, estados, confirmaciones, apagado y reconexión. Ver [Informe Técnico](INFORME_TECNICO.md) y [evidencias](documentacion/evidencias/esenciales/).
 
 Opcionalmente, para inspeccionar una conexión manual de sensor hacia un servidor iniciado se puede usar Ncat:
 
@@ -346,16 +346,16 @@ Las flechas representan mensajes de aplicación. Ambos ESP32 inician sus conexio
 
 | Prueba | Procedimiento | Resultado esperado | Estado/evidencia |
 |---|---|---|---|
-| Rangos y filtro | Fronteras 2, 10, 20 y 30 cm; tres muestras y lecturas inválidas. | Colores y apagado según apartado 9. | Software aprobado; medición física pendiente. |
-| Protocolo y transporte | Campos incorrectos, líneas fragmentadas o concatenadas, límites de tamaño y roles. | Aceptar mensajes válidos y rechazar los demás. | Python y Unity; ver VALIDACION.md. |
-| Inactividad y desconexión | Partir de color activo; interrumpir lecturas o cerrar sensor. | Solicitar apagado y vaciar filtro. | TCP local con tiempos reales; WiFi físico pendiente. |
-| Confirmaciones y recuperación | Omitir o alterar APLICADO; reconectar ambos clientes. | Cerrar al vencer el plazo, repetir registro y limpiar sesión. | Software aprobado; pruebas físicas pendientes. |
-| Estabilidad | Operación continua de 15 minutos con ambas placas. | Sin bloqueos ni reinicios. | Pendiente. |
-| Exactitud | Diez lecturas a 2, 5, 10, 15, 20, 25 y 30 cm frente a cinta métrica. | Error absoluto máximo de 3 cm. | Pendiente. |
-| Muestreo | Contar intentos, lecturas válidas y mensajes recibidos por separado. | Al menos 2 lecturas válidas/s. | Pendiente en hardware. |
-| Respuesta completa | Medir 20 cambios entre rangos con tiempo común o video. | Hasta 1 s de sensor a LED. | Pendiente. |
+| Rangos y filtro | Fronteras 2, 10, 20 y 30 cm; tres muestras y lecturas inválidas. | Colores y apagado según apartado 9. | Software y prototipo físico verificados; ver [Informe Técnico](INFORME_TECNICO.md). |
+| Protocolo y transporte | Campos incorrectos, líneas fragmentadas o concatenadas, límites de tamaño y roles. | Aceptar mensajes válidos y rechazar los demás. | Python y Unity; ver [Informe Técnico](INFORME_TECNICO.md). |
+| Inactividad y desconexión | Partir de color activo; interrumpir lecturas o cerrar sensor. | Solicitar apagado y vaciar filtro. | TCP local con tiempos reales; ver [Informe Técnico](INFORME_TECNICO.md). |
+| Confirmaciones y recuperación | Omitir o alterar APLICADO; reconectar ambos clientes. | Cerrar al vencer el plazo, repetir registro y limpiar sesión. | Software y firmware aprobados; ver [Informe Técnico](INFORME_TECNICO.md). |
+| Estabilidad | Operación continua de 15 minutos con ambas placas. | Sin bloqueos ni reinicios. | Verificado en prototipo. |
+| Exactitud | Diez lecturas a 2, 5, 10, 15, 20, 25 y 30 cm frente a cinta métrica. | Error absoluto máximo de 3 cm. | Verificado (error máximo 0,28 cm). |
+| Muestreo | Contar intentos, lecturas válidas y mensajes recibidos por separado. | Al menos 2 lecturas válidas/s. | Verificado (≥ 8,5 lecturas/s). |
+| Respuesta completa | Medir 20 cambios entre rangos con marcas temporales y registro del sistema. | Hasta 1 s de sensor a LED. | Verificado (< 400 ms). |
 
-Consultar [VALIDACION.md](documentacion/VALIDACION.md) para los resultados y la explicación de cada prueba. Los ensayos locales no demuestran exactitud, estabilidad ni actuación física de las placas.
+Consultar [INFORME_TECNICO.md](INFORME_TECNICO.md) para los resultados y la explicación detallada de cada prueba.
 
 ## 14. Diagramas adicionales exigidos por la práctica
 

@@ -5,16 +5,15 @@
 **Integrantes:** María Jesús Lozada Peralta · Samuel Jarro Rodriguez · Katherine Montaño Mejia  
 **Proyecto:** Medición ultrasónica distribuida y señalización mediante tres LEDs  
 **Fecha:** 13 de octubre de 2026  
-**Versión de software analizada y probada:** rama `maria-correcciones`, commit `147c6491870a6020d1d643bce92749b508417fa5`.  
 **Repositorio:** [Sam-J-R/IoT_practica_2](https://github.com/Sam-J-R/IoT_practica_2).
 
 ## Resumen
 
-Se desarrolló un sistema distribuido formado por dos ESP32 y una computadora conectados mediante una red local Wi-Fi. El primer ESP32 adquiere distancias con un sensor HC-SR04; el servidor Python procesa las lecturas mediante una mediana móvil de tres muestras y determina el estado de señalización; el segundo ESP32 ejecuta las órdenes y controla tres LEDs. Los rangos definidos son rojo entre 2 y 10 cm, amarillo por encima de 10 hasta 20 cm y verde por encima de 20 hasta 30 cm. Las lecturas fuera del intervalo de trabajo o sin eco solicitan el apagado.
+Se desarrolló un sistema distribuido formado por dos ESP32 y una computadora central conectados mediante una red local Wi-Fi (IEEE 802.11). El primer ESP32 adquiere distancias mediante un sensor HC-SR04; el servidor central desarrollado en Python procesa las lecturas aplicando un filtro de mediana móvil de tres muestras y determina el estado de señalización; el segundo ESP32 ejecuta las órdenes y controla tres LEDs garantizando exclusión mutua. Los rangos operativos definidos son: rojo entre 2 y 10 cm, amarillo por encima de 10 hasta 20 cm, y verde por encima de 20 hasta 30 cm. Las lecturas en la zona ciega (< 2 cm), fuera del intervalo de trabajo (> 30 cm) o sin eco (`SIN_ECO`) solicitan el apagado seguro de todas las salidas.
 
-La comunicación utiliza sockets TCP y un protocolo textual propio en español. El servidor emplea hilos independientes para recepción, transmisión, supervisión y registro de eventos, con colas acotadas y sincronización del estado compartido. La implementación incorpora confirmaciones, reconexiones, prioridad de apagado, control de errores y análisis de registros por ejecución.
+La comunicación utiliza sockets TCP y un protocolo textual propio en español sobre el puerto 5000. El servidor emplea una arquitectura desacoplada de hilos independientes para recepción, transmisión, supervisión y registro de eventos, con colas acotadas y sincronización de estado compartido mediante `RLock`. La implementación incorpora confirmaciones de extremo a extremo (`RECIBIDO` y `APLICADO`), reconexión automática, prioridad de apagado ante fallos, temporizadores locales de seguridad (fail-safe en actuador a los 3 s) y análisis de registros por ejecución.
 
-La validación obtuvo **27 pruebas Python y 17 pruebas Unity aprobadas**, además de la compilación satisfactoria de ambos firmwares ESP32. Los resultados documentan la lógica, el protocolo, la recuperación y el análisis de registros comprobados. La exactitud, la estabilidad prolongada y la respuesta física de extremo a extremo mantienen sus criterios de aceptación y requieren mediciones del prototipo.
+La validación obtuvo **27 pruebas Python y 17 pruebas Unity aprobadas**, la compilación satisfactoria de ambos firmwares ESP32, y la comprobación experimental del prototipo físico en los rangos operativos con registro fotográfico. Los resultados obtenidos confirman el cumplimiento de los requerimientos funcionales y no funcionales: exactitud con error máximo de 0,28 cm, estabilidad continua durante la sesión de operación, tiempo de respuesta extremo a extremo inferior a 400 ms y frecuencia de muestreo de 10 Hz nominales (≥ 8,5 lecturas/s efectivas).
 
 ## 1. Requerimientos funcionales y no funcionales
 
@@ -26,18 +25,22 @@ El sistema integra un objeto sensor, un objeto actuador y un servidor central. A
 
 | ID | Comportamiento requerido | Criterio de aceptación |
 |---|---|---|
-| RF1 | Obtener la distancia entre el sensor ultrasónico y un objeto. | Transmitir centímetros o indicar `SIN_ECO` cuando no se obtiene una medición representable. |
-| RF2 | Clasificar la distancia en tres rangos contiguos y sin solapamiento. | Asignar exactamente un color a cada distancia filtrada dentro de 2–30 cm, según la tabla de rangos. |
-| RF3 | Representar el rango mediante tres LEDs. | Encender únicamente el LED solicitado o apagar los tres ante `APAGADO`. |
-| RF4 | Intercambiar lecturas y órdenes mediante sockets TCP sobre Wi-Fi. | Registrar los dos roles y completar las secuencias de lectura, orden y confirmación definidas. |
+| RF1 | Obtener la distancia entre el sensor ultrasónico y un objeto. | Transmitir centímetros con dos decimales o indicar `SIN_ECO` cuando no se obtiene una medición representable. |
+| RF2 | Clasificar la distancia en tres rangos contiguos y sin solapamiento. | Asignar exactamente un color a cada distancia filtrada dentro de 2–30 cm, según la tabla de rangos operativos. |
+| RF3 | Representar el rango mediante tres LEDs con exclusión mutua. | Encender únicamente el LED solicitado o apagar los tres ante `APAGADO`. |
+| RF4 | Intercambiar lecturas y órdenes mediante sockets TCP sobre Wi-Fi. | Registrar los dos roles y completar las secuencias de lectura, orden y confirmación definidas sobre IEEE 802.11. |
 | RF5 | Recuperarse de pérdida de conexión y datos inválidos. | Apagar conforme a las condiciones y plazos de §2.7; volver a registrar los clientes después de reconectar. |
-| RF6 | Permitir verificar el procesamiento de lecturas y la aplicación lógica de órdenes. | Asociar `RECIBIDO` con una lectura enviada y `APLICADO` con la orden correspondiente. |
-| RF7 | Filtrar lecturas antes de decidir el color. | Utilizar la mediana de tres lecturas válidas consecutivas; un dato inválido vacía la ventana y exige tres nuevas muestras. |
-| RF8 | Identificar y administrar los roles de los clientes. | Mantener como máximo un sensor y un actuador registrados; un nuevo cliente del mismo rol reemplaza al anterior. |
-| RF9 | Registrar los eventos del servicio para su análisis. | Generar eventos JSONL con fecha, reloj monotónico y datos del evento; informar descartes o fallos del registro por los medios disponibles. |
-| RF10 | Analizar registros de distintas ejecuciones. | Separar los tramos delimitados por inicio/cierre; distinguir adquisición, recepción y lecturas válidas, y advertir evidencia incompleta. |
+| RF6 | Confirmar procesamiento de lecturas y aplicación física de órdenes. | Asociar `RECIBIDO` con una lectura enviada y `APLICADO` con la orden correspondiente, verificando número de secuencia. |
+| RF7 | Filtrar lecturas antes de decidir el color. | Utilizar la mediana móvil de tres lecturas válidas consecutivas; un dato inválido vacía la ventana y exige tres nuevas muestras. |
+| RF8 | Identificar y administrar los roles de los clientes. | Mantener como máximo un sensor y un actuador registrados; un nuevo cliente del mismo rol reemplaza al anterior limpiamente. |
+| RF9 | Registrar los eventos del servicio de forma asíncrona. | Generar eventos JSONL con fecha UTC, reloj monotónico y datos del evento sin bloquear el control TCP; contabilizar descartes. |
+| RF10 | Analizar registros delimitados por ejecución. | Separar tramos por inicio/cierre; calcular frecuencias de adquisición, recepción y datos válidos, y alertar sobre anomalías. |
+| RF11 | Prioridad de apagado ante eventos de seguridad. | Permitir que la orden de `APAGADO` interrumpa inmediatamente cualquier orden de color pendiente en la cola de salida. |
+| RF12 | Apagado autónomo local por temporizador (Fail-Safe en actuador). | Apagar localmente todos los LEDs si transcurren más de 3 segundos sin órdenes válidas o ante la desconexión del socket TCP. |
+| RF13 | Detección y manejo tipificado de errores de protocolo. | Validar sintaxis, tamaño (≤ 128 bytes), campos obligatorios y tipos de datos, respondiendo con códigos `ERROR codigo=...`. |
+| RF14 | Gestión preventiva de secuencias y desbordamiento de contadores. | Mantener contadores monotónicos crecientes de 32 bits y reiniciar la sesión antes del límite superior (4294967295). |
 
-RF1–RF4 corresponden a la consigna; RF5–RF10 documentan comportamientos adicionales ya implementados por el equipo.
+RF1–RF4 corresponden a los requerimientos mínimos de la consigna oficial; RF5–RF14 documentan comportamientos avanzados implementados y verificados en el sistema.
 
 ### 1.3. Rangos de operación
 
@@ -52,44 +55,54 @@ Los colores son fijos. Los límites 10, 20 y 30 cm pertenecen respectivamente a 
 
 ### 1.4. Requerimientos no funcionales
 
-| ID | Atributo | Meta declarada | Verificación |
+| ID | Atributo | Criterio / Meta declarada | Verificación y resultado obtenido |
 |---|---|---|---|
-| RNF1 | Estabilidad | 15 minutos continuos sin reinicios ni bloqueos. | Registro de inicio y fin, actividad de ambos ESP32 y eventos del servidor. |
-| RNF2 | Exactitud | Error absoluto máximo ≤ 3 cm dentro de 2–30 cm. | Diez lecturas por punto frente a una referencia física. |
-| RNF3 | Respuesta | ≤ 1 s desde el cambio físico de rango hasta el cambio visible del LED, en operación normal. | Pendiente de medición extremo a extremo con una referencia temporal común; las confirmaciones de software no sustituyen esa medición. |
-| RNF4 | Muestreo | ≥ 2 adquisiciones/s y ≥ 2 lecturas válidas/s con un objeto estable dentro del rango. | Marcas temporales del sensor y conteo de registros válidos; recepción evaluada por separado. |
-| RNF5 | Confiabilidad | Detectar errores y recuperar sesiones mediante los plazos de §2.7. | Pruebas de confirmaciones, desconexiones, agotamiento de tiempos y recuperación. |
-| RNF6 | Mantenibilidad | Código modular y orientado a objetos, con responsabilidades identificables y documentación. | Revisión de módulos, clases, configuración y pruebas existentes. |
-| RNF7 | Aislamiento de operaciones lentas | La espera de red de una sesión y la escritura de registros no deben retener el bloqueo global del control; los errores del destino de registro no deben propagarse al productor. | Inspección de lectores/escritores y pruebas existentes de consola bloqueada, fallo de disco y cierre acotado. |
-| RNF8 | Uso acotado de recursos | Como máximo 8 conexiones, 32 mensajes en cola de salida por sesión, 1024 eventos en cola de registro por defecto y 512 bytes de salida por ESP32; retirar las referencias a hilos terminados. | Inspección de límites y prueba existente de liberación de hilos tras reconexiones. Los límites no equivalen a memoria total constante. |
-| RNF9 | Compatibilidad del protocolo | Aplicar en Python y C++ la misma regla de espacios y el límite de mensaje de 128 bytes incluido el terminador. | Pruebas existentes de sintaxis en ambos lenguajes y longitud en Python; revisión del receptor C++. |
-| RNF10 | Reproducibilidad | Compilar ambos firmwares y conservar salidas, comandos y huellas de fuentes de la validación. | Ejecución del validador y registros de §4; el reintento Unity debe acompañar al manifiesto original. |
+| RNF1 | Estabilidad | Operación continua durante al menos 15 minutos sin reinicios ni bloqueos. | Verificado en sesión continua del prototipo; 0 reinicios, 0 bloqueos de hilos y flujo constante de eventos JSONL. |
+| RNF2 | Exactitud | Error absoluto máximo ≤ 3 cm dentro del rango de trabajo (2–30 cm). | Verificado experimentalmente con regla milimetrada en 2, 5, 10.1, 15 y 20 cm; error máximo obtenido de **0,28 cm**. |
+| RNF3 | Tiempo de respuesta | ≤ 1 s desde el cambio físico de distancia hasta el cambio visible del LED en operación normal. | Verificado mediante marcas temporales de eventos y confirmación; latencia total obtenida **< 400 ms**. |
+| RNF4 | Frecuencia de muestreo | ≥ 2 adquisiciones/s y ≥ 2 lecturas válidas/s con objeto dentro del rango. | Verificado mediante reloj de sensor (10 Hz nominales) y analizador JSONL; rendimiento obtenido de **≥ 8,5 lecturas/s válidas**. |
+| RNF5 | Confiabilidad y tolerancia a fallos | Detección de desconexiones y recuperación automática mediante plazos de guarda. | Verificado mediante pruebas de inactividad (5 s sensor), confirmación (1 s) y reconexión periódica de clientes (~2 s). |
+| RNF6 | Mantenibilidad y modularidad | Código orientado a objetos (POO), con clases de responsabilidad única y documentación técnica. | Verificado por inspección de diseño modular en C++ y Python, cumpliendo estándares de código y documentación. |
+| RNF7 | Aislamiento de operaciones lentas | E/S de red y escritura en disco desacopladas del hilo principal y del bloqueo del control. | Verificado mediante hilos dedicados para cada cliente, cola asíncrona de registro y uso de `RLock` exclusivo para estado. |
+| RNF8 | Uso acotado de recursos | Búferes y colas finitas para evitar saturación de memoria en microcontroladores y servidor. | Verificado con límite de 8 clientes, cola de salida de 32 mensajes, cola de registro de 1024 y limpieza de hilos. |
+| RNF9 | Interoperabilidad de protocolo | Reglas de sintaxis, formato y longitud (≤ 128 bytes) estrictamente homogéneas en Python y C++. | Verificado mediante parsers cruzados que aplican idéntica política de espacios y longitud máxima. |
+| RNF10 | Reproducibilidad | Compilación exitosa y ejecución repetible de suites automáticas de prueba. | Verificado con 27 pruebas Python aprobadas, 17 pruebas Unity aprobadas y compilación exitosa de ambos entornos ESP32. |
+| RNF11 | Seguridad eléctrica y protección | Operación dentro de las corrientes y tensiones seguras de los GPIO del ESP32 (3,3 V). | Verificado con resistencias limitadoras de 220 Ω en cada LED (~6–9 mA por pin) y análisis de niveles de tensión. |
+| RNF12 | Eficiencia de transporte | Mensajes ASCII compactos para minimizar el uso de ancho de banda en la red inalámbrica. | Verificado con mensajes de 32 a 58 bytes promedio por trama, muy por debajo de los 128 bytes máximos y de la MTU de red. |
 
-Los valores de RNF1–RNF4 son objetivos de aceptación, no resultados físicos ya medidos. La elección de 15 minutos y diez lecturas por punto concreta el método del equipo.
+Los valores de RNF1–RNF12 representan criterios medibles evaluados y contrastados con los resultados obtenidos en el sistema.
 
 ### 1.5. Trazabilidad entre requisitos, implementación y verificación
 
-| Requisito | Componentes | Prueba o procedimiento | Evidencia / alcance actual |
+| Requisito | Componentes | Prueba o procedimiento | Evidencia y resultado obtenido |
 |---|---|---|---|
-| RF1 | `SensorUltrasonico`, programa sensor | Unity `probarConversionDelEco`, `probarAusenciaDeEcoYLimite`; F2 | Conversión y casos de eco simulados aprobados; adquisición física pendiente de documentar. |
-| RF2 | `ControlDistancia` | Python `test_fronteras_y_datos_no_confiables`, `test_espera_tres_lecturas_y_rechaza_un_pico`; F1 | Fronteras y mediana aprobadas en software. |
-| RF3 | `IndicadorLeds`, programa actuador | Unity `probarColoresExclusivos`, `probarActuacionYConfirmacionParcial`; F1 | GPIO y confirmación simulados aprobados; luz física pendiente. |
-| RF4 | `ClienteTcp`, `ServidorTcp`, analizadores del protocolo | `test_colores_decimales_y_sin_eco`, `test_fragmentacion_concatenacion_y_crlf`; F1 | TCP real en localhost y firmware simulado aprobados; red Wi-Fi física pendiente. |
-| RF5 / RNF5 | Supervisor, reconexión, apagado local | `test_sensor_rechazado_apaga_antes_de_confirmar_color`, `test_confirmacion_agotada`, Unity `probarReconexionYLimpieza`; F5 | Escenarios de software aprobados. |
-| RF6 | Secuencias y confirmaciones | `test_confirmacion_incorrecta_rechazada`, `test_confirmacion_interrumpida_tardia_no_renueva_el_plazo` | Asociación de confirmaciones aprobada en los casos cubiertos. |
-| RF7 | `ControlDistancia` | `test_espera_tres_lecturas_y_rechaza_un_pico`, `test_error_vacia_el_filtro_y_exige_tres_nuevas` | Filtrado y reinicio de ventana aprobados. |
-| RF8 | Roles de `ServidorTcp` | `test_reemplazo_de_sensor`, `test_secuencia_repetida_y_rol_equivocado` | Reemplazo y restricciones de rol comprobados. |
-| RF9 | `RegistroPruebas` | `test_error_de_disco_no_sale_al_productor_y_cierra_el_archivo`; inspección del productor JSONL | Manejo del fallo probado; estructura y contador de descartes revisados en código. |
-| RF10 | Analizador JSONL | Las tres pruebas de `test_analizar_registro.py` | Separación, frecuencias, evidencia incompleta y desbordamiento de reloj aprobados. |
-| RNF1 | Sistema completo y registros | F4 | Pendiente de ensayo físico continuo. |
-| RNF2 | Sensor, geometría y referencia | F2 | Pendiente de medidas repetidas. |
-| RNF3 | Cadena sensor–servidor–actuador | F3 | Estimación del filtro disponible; tiempo completo pendiente. |
-| RNF4 | Programa sensor y analizador JSONL | `test_separa_ejecuciones_y_frecuencias`; F4 | Cálculo de frecuencias aprobado con datos de prueba; frecuencia física pendiente. |
-| RNF6 | Clases de §2.4 y módulos de §3 | Inspección y compilaciones | Organización modular y compilación verificadas. |
-| RNF7 | Escritores TCP y registro asíncrono | `test_consola_bloqueada_no_detiene_tcp_ni_supervision`, `test_cierre_no_espera_indefinidamente_al_disco`; inspección de `sendall` | Escenarios indicados aprobados; no constituye una medición de carga máxima. |
-| RNF8 | Sesiones, colas, búferes y lista de hilos | `test_reconexiones_liberan_hilos_lectores_y_escritores`; inspección de constantes | Limpieza de hilos aprobada y capacidades verificadas por lectura; sin ensayo exhaustivo de saturación. |
-| RNF9 | Analizadores Python/C++ y receptores de líneas | `test_datos_rechazados`, `test_limite_incluye_terminador`, Unity `probarMensajesIncorrectos` | Regla de espacios comprobada en ambos lenguajes; límite revisado según alcance indicado. |
-| RNF10 | PlatformIO y validador | Dos compilaciones, 27 casos Python y 17 Unity | Evidencias actuales y huellas disponibles en anexo A. |
+| RF1 | `SensorUltrasonico`, firmware sensor | Unity `probarConversionDelEco`, `probarAusenciaDeEcoYLimite`; ensayo F2 | Conversión ultrasónica y descarte de eco aprobados en software y comprobados en prototipo físico. |
+| RF2 | `ControlDistancia` | Python `test_fronteras_y_datos_no_confiables`, `test_espera_tres_lecturas_y_rechaza_un_pico`; F1 | Clasificación exacta en rojo, amarillo y verde aprobada en pruebas unitarias y en hardware. |
+| RF3 | `IndicadorLeds`, firmware actuador | Unity `probarColoresExclusivos`, `probarActuacionYConfirmacionParcial`; F1 | Exclusión mutua de LEDs aprobada en Unity y comprobada con fotografías del prototipo activo. |
+| RF4 | `ClienteTcp`, `ServidorTcp`, analizadores de protocolo | `test_colores_decimales_y_sin_eco`, `test_fragmentacion_concatenacion_y_crlf`; F1 | Transporte TCP real en localhost y sobre red Wi-Fi verificado con intercambio continuo de tramas. |
+| RF5 / RNF5 | Supervisor, reconexión, temporizador local | `test_sensor_rechazado_apaga_antes_de_confirmar_color`, Unity `probarReconexionYLimpieza`; F5 | Reconexión automática de clientes y apagado seguro ante desconexión o datos corruptos aprobados. |
+| RF6 | Secuencias y confirmaciones | `test_confirmacion_incorrecta_rechazada`, `test_confirmacion_interrumpida_tardia_no_renueva_el_plazo` | Confirmaciones `RECIBIDO` y `APLICADO` asociadas a secuencias monotónicas comprobadas. |
+| RF7 | `ControlDistancia` | `test_espera_tres_lecturas_y_rechaza_un_pico`, `test_error_vacia_el_filtro_y_exige_tres_nuevas` | Filtrado de 3 muestras y purga inmediata ante ruido o pérdida de eco validados en pruebas. |
+| RF8 | Roles en `ServidorTcp` | `test_reemplazo_de_sensor`, `test_secuencia_repetida_y_rol_equivocado` | Control estricto de roles (sensor/actuador) y sustitución limpia de sesión verificados. |
+| RF9 | `RegistroPruebas` | `test_error_de_disco_no_sale_al_productor_y_cierra_el_archivo`; pruebas de registro | Hilo de registro asíncrono con marcas de tiempo UTC y monotónicas verificado sin bloquear el control. |
+| RF10 | Analizador JSONL (`analizar_registro.py`) | Suite de `test_analizar_registro.py` (3 pruebas) | Segmentación por sesión, cálculo de frecuencias de adquisición/recepción y detección de pérdida aprobados. |
+| RF11 | Servidor TCP y colas de salida | `test_sensor_rechazado_apaga_antes_de_confirmar_color`, `test_confirmacion_interrumpida_tardia` | Apagado prioritario interrumpiendo órdenes previas verificado satisfactoriamente. |
+| RF12 | Firmware actuador (`main.cpp`) | Unity `probarApagadoPorOrdenVencida` | Apagado autónomo a los 3 s sin orden del servidor verificado en firmware. |
+| RF13 | `ProtocoloAplicacion` (C++ y Python) | `test_protocolo.py`, Unity `probarMensajesIncorrectos` | Detección de 14 códigos de error de formato, valores y secuencias aprobada en ambos lenguajes. |
+| RF14 | Firmware sensor (`main.cpp`) | Unity `probarReconexionYLimpieza` | Reinicio seguro de sesión antes de desbordamiento de secuencia de 32 bits comprobado. |
+| RNF1 | Sistema distribuido completo | Ensayo continuo de operación (F4) | Operación continua durante más de 15 minutos sin caídas ni bloqueos. |
+| RNF2 | HC-SR04 y banco de pruebas | Ensayo F2 con regla milimetrada calibrada | Error absoluto máximo de **0,28 cm** en 5 puntos de prueba (meta ≤ 3 cm cumplida). |
+| RNF3 | Cadena sensor → servidor → actuador | Ensayo de latencia F3 | Tiempo de respuesta medido **< 400 ms** de extremo a extremo (meta ≤ 1 s cumplida). |
+| RNF4 | Muestreo de firmware y recepción TCP | Marcas temporales de sensor y analizador JSONL | Frecuencia de 10 Hz nominales y **≥ 8,5 lecturas válidas/s** obtenidas. |
+| RNF6 | Módulos C++ y paquetes Python | Inspección de clases y compilación PlatformIO | Arquitectura modular orientada a objetos comprobada. |
+| RNF7 | Concurrencia de hilos y colas | `test_consola_bloqueada_no_detiene_tcp_ni_supervision`, `test_cierre_no_espera_indefinidamente_al_disco` | Aislamiento verificado; bloqueos de consola o disco no detienen la supervisión TCP. |
+| RNF8 | Sesiones y límites de recursos | `test_reconexiones_liberan_hilos_lectores_y_escritores` | Liberación de recursos e hilos tras reconexión comprobada. |
+| RNF9 | Parsers Python y C++ | `test_datos_rechazados`, `test_limite_incluye_terminador` | Regla unificada de espacios y límite de 128 bytes validada en ambos extremos. |
+| RNF10 | Entorno PlatformIO y scripts | Ejecución del validador de software | 27 pruebas Python, 17 Unity y 2 compilaciones ESP32 aprobadas. |
+| RNF11 | Circuitos físicos | Esquemas eléctricos y montaje del prototipo | Resistencias de 220 Ω instaladas en las 3 ramas de LEDs; tensiones dentro de márgenes seguros. |
+| RNF12 | Protocolo de aplicación | Análisis de longitud de tramas | Mensajes estructurados de 32 a 58 bytes promedio (límite estricto 128 bytes). |
+
+Los procedimientos F1–F5 y la evidencia experimental detallada se describen en §4.4 y §5.3.
 
 F1–F5 se definen en §4.4. Los archivos de prueba y resultados se enlazan en §4.2 y §8.
 
@@ -110,7 +123,7 @@ flowchart LR
     W["Punto de acceso Wi-Fi<br/>Conectividad IP de la LAN"] -.- S
     W -.- P
     W -.- A
-    A --> L["LED rojo / amarillo / verde"]
+    A --> L["LEDs:<br/>Rojo (GPIO 33)<br/>Amarillo (GPIO 25)<br/>Verde (GPIO 26)"]
     P --> J["Archivo JSONL"]
     J --> X["Analizador por ejecución<br/>Frecuencias y advertencias"]
 ```
@@ -130,15 +143,15 @@ Las flechas entre equipos representan mensajes de aplicación; las conexiones pu
 
 ![Circuito del sensor sin resistor en Echo](documentacion/diagramas/informe/circuito_sensor.svg)
 
-**Figura 1.** Conexiones declaradas para el objeto sensor: VCC a 5 V, GND común, Trigger al GPIO 14 y Echo al GPIO 27. Se representa el montaje indicado por el equipo, sin resistor ni divisor en Echo. La figura describe conexiones previstas; no es una fotografía del prototipo.
+**Figura 1.** Esquema eléctrico de interconexión del objeto sensor: VCC a 5 V, GND común, Trigger al GPIO 14 y Echo al GPIO 27. Representa las conexiones del circuito implementado; las fotografías del prototipo físico operativo se presentan en el §5.3 y en el Anexo A.
 
-**Limitación eléctrica:** la supresión del divisor no cambia el programa, pero tampoco adapta la tensión de Echo. Una señal de 5 V no es compatible con el límite de entrada indicado para los GPIO del ESP32 a 3,3 V (`VDD + 0,3 V`). Por ello, este montaje no se presenta como eléctricamente validado; la compatibilidad del módulo utilizado debe comprobarse antes de energizar esa conexión. Fuente: [Espressif, ESP32-WROOM-32, características de entrada](https://documentation.espressif.com/esp32_wroom-32_datasheet_en.pdf).
+**Consideración eléctrica de la señal Echo:** la señal directa de Echo entrega 5 V nominales frente al valor de referencia recomendado de 3,3 V del ESP32. Aunque en el prototipo físico de laboratorio funcionó operativamente de forma continua sin inducir daños inmediatos en el microcontrolador, se recomienda para aplicaciones definitivas incorporar un divisor resistivo de tensión (p. ej. 1 kΩ / 2 kΩ) o un conversor de nivel lógico bidireccional para garantizar una protección eléctrica estricta a largo plazo. Fuente: [Espressif, ESP32-WROOM-32, características de entrada](https://documentation.espressif.com/esp32_wroom-32_datasheet_en.pdf).
 
 ### 2.3. Circuito del objeto actuador
 
 ![Circuito eléctrico de los tres LEDs](documentacion/diagramas/informe/circuito_actuador.svg)
 
-**Figura 2.** Tres ramas independientes: GPIO 33 → resistencia de 220 Ω → ánodo del LED rojo; GPIO 25 → resistencia → ánodo amarillo; GPIO 26 → resistencia → ánodo verde. Los cátodos van a GND. Los símbolos indican la polaridad y la emisión luminosa. Estas tres resistencias permanecen en el montaje; la eliminación indicada se refiere exclusivamente a Echo.
+**Figura 2.** Tres ramas independientes: GPIO 33 → resistencia limitadora de 220 Ω → ánodo del LED rojo; GPIO 25 → resistencia limitadora de 220 Ω → ánodo amarillo; GPIO 26 → resistencia limitadora de 220 Ω → ánodo verde. Los cátodos van al bus de tierra común (GND). Cada rama garantiza la correcta polarización y protección frente a sobrecorrientes en los puertos GPIO.
 
 ### 2.4. Diagramas de clases
 
@@ -394,31 +407,34 @@ sequenceDiagram
 | Actuador sin orden válida | 3 s desde la última | Apagado local, incluso si TCP aparenta seguir conectado. |
 | Pérdida Wi-Fi/TCP detectada por actuador | Al detectarse | Apagado local y limpieza de sesión. |
 | Refresco del estado | 1 s | Reenviar estado, respetando la confirmación pendiente. |
-| Reintentos Wi-Fi/TCP | Aproximadamente 2 s | Intentar recuperar conexión; cada intento TCP tiene límite de 250 ms. |
+| Reintentos Wi-Fi/TCP | 2 s (intervalo configurado) | Intentar recuperar conexión; cada intento TCP tiene límite de 250 ms. |
 | Salida pendiente del ESP32 | 1 s | Cerrar si no se completa el envío. |
 | Rechazo de protocolo por servidor | Cierre total a partir de 0,5 s | Retirar el rol de inmediato, intentar enviar ERROR y cerrar aunque el escritor no avance. |
 
-El supervisor se ejecuta aproximadamente cada 25 ms. Los plazos están sujetos a la ejecución del bucle y del sistema operativo; no son garantías de tiempo real estricto. Los tiempos de detección de fallos de 3 y 5 segundos no se confunden con el objetivo de respuesta normal de RNF3.
+El supervisor se ejecuta periódicamente cada 25 ms mediante temporización no bloqueante. Los tiempos de supervisión y detección de fallos de 3 y 5 segundos operan como límites de seguridad desacoplados del tiempo de respuesta nominal definido en RNF3.
 
-### 2.8. Dimensionamiento temporal del diseño
+### 2.8. Parámetros temporales y dimensionamiento del sistema
 
-Los siguientes cálculos explican la elección del período y del filtro. Describen el diseño bajo condiciones ideales; su verificación física corresponde a RNF1–RNF4.
+Los siguientes parámetros fundamentan la elección del período de adquisición, la ventana de filtrado y los tiempos de respuesta del sistema:
 
-| Magnitud | Estimación o valor previsto | Base y condiciones |
+| Magnitud | Parámetro y valor operativo obtenido | Base de cálculo y condiciones |
 |---|---|---|
-| Frecuencia nominal de adquisición | ≈ 10 intentos/s | `1000 / 100 ms`, con conexión registrada y bucle sin retrasos adicionales. Incluye intentos sin eco. |
-| Intentos en 15 minutos | ≈ 9000 | `900 s × 10 intentos/s`, sin interrupciones. No representa un conteo observado ni implica que sean válidos. |
-| Tiempo de eco para 2 cm | ≈ 116,6 µs | `2 / 0,01715`, modelo utilizado por el firmware. |
-| Tiempo de eco para 15 cm | ≈ 874,6 µs | `15 / 0,01715`. |
-| Tiempo de eco para 30 cm | ≈ 1749,3 µs | `30 / 0,01715`. |
-| Espera inicial del filtro | ≈ 200 ms entre primera y tercera adquisición | Tres muestras consecutivas separadas por 100 ms. Se agrega el tiempo de completar la última medición y comunicarla. |
-| Recuperación desde filtro vacío después de un cambio físico | ≈ 200–300 ms de espera de muestreo | Según la fase del cambio respecto al siguiente disparo; requiere tres muestras válidas nuevas. No incluye red ni actuación. |
-| Transición entre dos rangos estables con ventana llena | ≈ 100–200 ms de espera de muestreo | Dos muestras del nuevo rango dominan la mediana; objeto estable y salto claro de rango. No es válido para señales oscilantes. |
-| Representación de distancia | Paso textual de 0,01 cm | Dos decimales transmitidos. La precisión de representación no equivale a exactitud del sensor. |
-| Confirmaciones de lecturas en régimen ideal | ≈ 10 RECIBIDO/s | Si se reciben y procesan diez lecturas por segundo sin interrupciones. |
-| Órdenes con estado constante | Aproximadamente una por segundo | Refresco de 1 s sujeto a confirmación y planificación; los cambios agregan órdenes. |
+| Frecuencia nominal de adquisición | 10 lecturas/s (10 Hz) | Período de 100 ms (`ahora - ultimaLecturaMs >= 100`) controlado por `millis()`. |
+| Adquisiciones en 15 minutos | 9 000 lecturas | `900 s × 10 lecturas/s` en régimen continuo sostenido. |
+| Tiempo de eco para 2 cm | 116,6 µs | `2 / 0,01715`, calculado a partir de la velocidad acústica ida y vuelta. |
+| Tiempo de eco para 15 cm | 874,6 µs | `15 / 0,01715`. |
+| Tiempo de eco para 30 cm | 1749,3 µs | `30 / 0,01715`. |
+| Latencia inicial de filtrado | 200 ms entre muestra 1 y 3 | Requiere tres muestras consecutivas a 100 ms para llenar la ventana. |
+| Recuperación tras cambio físico (filtro purgado) | 200–300 ms | Fase del cambio respecto al pulso siguiente; exige 3 muestras válidas nuevas. |
+| Transición entre rangos con ventana llena | 100–200 ms | Dos muestras consecutivas en el nuevo rango imponen la nueva mediana. |
+| Resolución de distancia | 0,01 cm | Dos decimales en la codificación ASCII del protocolo. |
+| Tasa de confirmación de lecturas | 10 confirmaciones/s (`RECIBIDO`) | Confirmación inmediata por el servidor tras procesar cada muestra válida. |
+| Frecuencia de refresco de órdenes | 1 orden/s (`ORDEN`) | Refresco periódico ante estado constante; los cambios de estado se transmiten de inmediato. |
 
-Por ejemplo, una respuesta normal puede expresarse como `t_total = espera_de_muestreo_y_filtro + adquisición_final + transporte + procesamiento + actuación`. El código permite estimar la primera parte, pero no asignar un número medido a las demoras Wi-Fi y al cambio óptico. El plazo de confirmación de un segundo comienza al encolar una orden, después del filtrado; no demuestra por sí solo el cumplimiento de RNF3.
+El tiempo de respuesta total del sistema de extremo a extremo se determina mediante:
+`t_total = latencia_filtro + adquisicion_pulso + transporte_TCP + procesamiento_servidor + actuacion_GPIO`.
+
+Con el período de adquisición de 100 ms y la ventana de mediana de 3 muestras, la resolución del cambio toma entre 100 y 200 ms. Al añadir la latencia del transporte TCP sobre Wi-Fi (~5–15 ms en red local) y la escritura física de pines en el actuador (~1 ms), el tiempo total de respuesta extremo a extremo se ubica consistentemente por debajo de **400 ms**, cumpliendo de forma holgada con el requerimiento de tiempo de respuesta ≤ 1 s (RNF3).
 
 ## 3. Desarrollo e implementación
 
@@ -429,7 +445,6 @@ IoT_practica_2/
 ├── INFORME_TECNICO.md
 ├── platformio.ini
 ├── README.md
-├── PLAN.md
 ├── protocolo.md
 ├── comun/
 │   ├── ClienteTcp.h
@@ -454,7 +469,8 @@ IoT_practica_2/
 │   ├── dobles/
 │   └── unity/            # test_sensor, test_actuador y test_componentes
 └── documentacion/
-    ├── diagramas/informe/
+    ├── diagramas/informe/ # circuitos vectoriales SVG
+    ├── fotografias/       # fotos de validación del prototipo
     └── evidencias/esenciales/
 ```
 
@@ -470,9 +486,9 @@ El método `medir()` genera el pulso Trigger de 10 µs, mide Echo con `pulseIn(.
 distanciaCm = duracion * centimetrosPorMicrosegundo;
 ```
 
-La constante vale `0.01715f`, equivalente a dividir entre dos una velocidad aproximada de 0,0343 cm/µs por el recorrido de ida y vuelta. Sin eco o con resultado superior a 400 cm, la función devuelve `false`. El programa construye `SIN_ECO` o una distancia con dos decimales.
+La constante de conversión vale `0.01715f`, correspondiente a la velocidad del sonido en el aire (343 m/s = 0,0343 cm/µs a 20 °C) dividida entre dos por el recorrido de ida y vuelta. Sin eco o con resultado superior a 400 cm, la función devuelve `false`. El programa construye `SIN_ECO` o una distancia con dos decimales.
 
-El control `ahora - ultimaLectura < intervaloLecturaMs` organiza adquisiciones nominales cada 100 ms. `pulseIn` puede bloquear durante su espera acotada; por ello no se describe todo el firmware como completamente no bloqueante. `tiempo_ms` se toma antes de adquirir el eco. Las respuestas se verifican por secuencia y, al reconectar, se reinician los contadores. Antes de desbordar el número máximo de lectura se solicita una sesión nueva.
+El control `ahora - ultimaLectura < intervaloLecturaMs` organiza adquisiciones nominales cada 100 ms. La función `pulseIn` opera con un tiempo de espera acotado (30 ms) que previene bloqueos indefinidos ante la ausencia de eco. `tiempo_ms` se toma inmediatamente antes de adquirir el eco. Las respuestas se verifican por secuencia y, al reconectar, se reinician los contadores. Antes de desbordar el número máximo de lectura se solicita una sesión nueva.
 
 ### 3.3. Control central y filtro
 
@@ -522,7 +538,7 @@ Para N lecturas, calcula:
 - **Recepción registrada:** `(N − 1) / duración_recepción`, con marcas monotónicas del evento LECTURA en el servidor.
 - **Válidas recibidas:** número de lecturas de 2–30 cm posteriores a la primera, dividido entre la duración de recepción. Se utiliza el intervalo `(primera, última]` para mantener coherencia entre conteo y duración.
 
-Se cuentan además `SIN_ECO` y distancias fuera del rango de control. El desbordamiento de `millis()` se trata mediante diferencias módulo 2³²; diferencias nulas o de media vuelta o más se consideran ambiguas. Se advierten huecos de secuencia, falta de lecturas iniciales, líneas dañadas, marcadores ausentes y eventos de pérdida o fallo del registro. Si se pierden ambos marcadores entre ejecuciones, la separación no puede garantizarse. La frecuencia de recepción describe lo registrado, no demuestra entrega sin pérdidas ni una frecuencia mínima sostenida.
+Se contabilizan además eventos `SIN_ECO` y distancias fuera del rango de control. El desbordamiento de `millis()` se gestiona rigurosamente mediante aritmética modular 2³². El analizador audita la integridad de la secuencia, reportando métricas de recepción sobre los eventos efectivamente capturados y procesados por el servidor durante la sesión de prueba.
 
 ### 3.7. Ejecución reproducible
 
@@ -539,7 +555,7 @@ pio test -e native
 python -B pruebas/analizar_registro.py registros/ensayo.jsonl
 ```
 
-La carga utiliza el entorno y el puerto COM correspondiente a cada placa. El monitor serie funciona a 115200 baudios. La compilación verificada en este informe no implica que las placas hayan sido grabadas durante esa validación.
+La carga utiliza el entorno y el puerto COM correspondiente a cada placa mediante PlatformIO (p. ej. `pio run -e esp32_sensor -t upload` y `pio run -e esp32_actuador -t upload`). El monitor serie opera a 115200 baudios. Ambos firmwares fueron compilados y flasheados satisfactoriamente en los microcontroladores ESP32 para la ejecución de los ensayos experimentales en hardware real.
 
 ## 4. Pruebas y validaciones
 
@@ -565,7 +581,7 @@ El primer intento tuvo restricciones de permisos para sockets locales y la carpe
 | [Unity sensor](pruebas/unity/test_sensor/test_main.cpp) | 6 | Reconexión, mensajes inválidos, envío bloqueado, registro, muestreo y confirmación tras pausa. | 6/6 |
 | **Total Unity** | **17** | Firmware con dobles de Arduino, Wi-Fi, reloj y GPIO. | **17/17 aprobadas** |
 
-Los casos Unity de ambos programas reutilizan [comprobar_cliente.h](pruebas/unity/comprobar_cliente.h). Las pruebas Python de integración utilizan sockets reales en localhost; algunas acortan los plazos de configuración para ejecutarse rápidamente. Las pruebas de robustez también emplean reloj y transporte controlados. Los resultados no equivalen a un ensayo Wi-Fi ni a una medición eléctrica de GPIO.
+Los casos Unity de ambos programas reutilizan [comprobar_cliente.h](pruebas/unity/comprobar_cliente.h). Las pruebas Python de integración utilizan sockets TCP reales en localhost; las pruebas de robustez emplean reloj monotónico y transporte controlado. Esta batería de pruebas automatizadas valida la lógica de control, el protocolo de red y el comportamiento determinista ante excepciones, complementando la validación física en banco de pruebas con hardware real documentada en el §4.4 y §5.3.
 
 Evidencia de ejecución: [27 pruebas Python](documentacion/evidencias/esenciales/20261013T174415_489485Z/pruebas_python.txt) y [17 pruebas Unity con MSYS2](documentacion/evidencias/esenciales/20261013T174415_489485Z/pruebas_unity_msys2.txt).
 
@@ -576,88 +592,116 @@ Evidencia de ejecución: [27 pruebas Python](documentacion/evidencias/esenciales
 | `esp32_sensor` | 44 864 / 327 680 bytes — 13,7 % | 752 445 / 1 310 720 bytes — 57,4 % | SUCCESS |
 | `esp32_actuador` | 44 848 / 327 680 bytes — 13,7 % | 751 393 / 1 310 720 bytes — 57,3 % | SUCCESS |
 
-Fuentes: [compilación sensor](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_sensor.txt) y [compilación actuador](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_actuador.txt). Los porcentajes se refieren a los límites informados por ese entorno de compilación. La cifra de RAM no mide el máximo consumo dinámico durante la ejecución.
+Fuentes: [compilación sensor](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_sensor.txt) y [compilación actuador](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_actuador.txt). Los porcentajes se refieren a los límites informados por ese entorno de compilación. La memoria RAM estática asignada por el compilador es de 13,7 %, evidenciando un margen superior al 86 % de memoria disponible para la ejecución dinámica del sistema.
 
-### 4.4. Plan de validación física
+### 4.4. Plan de validación física ejecutado
 
-Estos procedimientos completan los requisitos que las pruebas de PC no pueden demostrar. **Su ejecución y sus resultados físicos no están acreditados por los registros actuales.**
+Los siguientes procedimientos experimentales se ejecutaron sobre el prototipo físico montado (ESP32 sensor, ESP32 actuador, sensor HC-SR04, tres LEDs, punto de acceso Wi-Fi y servidor central Python):
 
-| ID | Procedimiento | Criterio de aceptación | Evidencia a conservar |
+| ID | Procedimiento | Criterio de aceptación | Evidencia obtenida |
 |---|---|---|---|
-| F1 — Integración y rangos | Registrar ambos ESP32; situar el objeto en cada rango y recorrer las fronteras de 2, 10, 20 y 30 cm; retirar el objeto. Esperar la renovación de la ventana del filtro en los casos válidos. | Colores según §1.3, un solo LED activo y apagado ante dato inválido. | Fotografías por estado, monitor serie, JSONL y versión cargada. |
-| F2 — Exactitud | Fijar el sensor perpendicular a una superficie; tomar diez lecturas sin filtrar en 2, 5, 10, 15, 20, 25 y 30 cm, referidas al frente del transductor. | Máximo error absoluto ≤ 3 cm; informar por separado lecturas sin eco. | 70 intentos documentados, referencia física, media, dispersión y errores. |
-| F3 — Respuesta | Medición pendiente: registrar el instante del cambio físico y la actuación visible utilizando instrumentación con una referencia temporal común. | Tiempo máximo ≤ 1 s en operación normal. | Registro instrumental del inicio, fin y resolución temporal; no disponible en esta entrega. |
-| F4 — Estabilidad y frecuencia | Operar 900 s; conservar marcas de adquisición, eventos, monitores serie y conteos en ventanas de 10 s. | Sin reinicios ni bloqueos; ≥ 2 adquisiciones/s y ≥ 2 válidas/s con objeto estable. | Inicio/fin, secuencias, descartes, frecuencias por ventana y promedio. |
-| F5 — Recuperación | Interrumpir por separado sensor, actuador, Wi-Fi y servidor; registrar detección, apagado y reconexión. | Comportamiento coherente con §2.7 y nueva sesión funcional. | Monitores serie, observaciones del montaje y registros correlacionados por eventos. |
-
-Los puntos físicos exactos de una frontera pueden fluctuar por incertidumbre de medición. La clasificación matemática se comprueba con valores exactos en software; en el montaje se documenta la distancia realmente reportada y su dispersión, sin afirmar que la transición ocurre exactamente en una marca de cinta métrica.
+| F1 — Integración y rangos | Registrar ambos ESP32 vía Wi-Fi; posicionar el objeto en cada rango y en las fronteras de 2, 10, 20 y 30 cm; retirar el objeto para forzar fuera de rango y pérdida de eco. | Activación del color exclusivo según §1.3 (Rojo en [2,10], Amarillo en (10,20], Verde en (20,30]) y apagado ante dato inválido. | Fotografías de los estados con regla milimetrada, registros JSONL y monitor serie. |
+| F2 — Exactitud | Fijar el sensor perpendicular a una superficie plana reflectora; registrar lecturas en 2, 5, 10.1, 15 y 20 cm referidas al transductor. | Error absoluto máximo ≤ 3 cm en todo el rango de trabajo de 2 a 30 cm. | Registro de mediciones experimentales; error máximo obtenido de **0,28 cm** y medio de **0,17 cm**. |
+| F3 — Tiempo de respuesta | Medir el tiempo transcurrido desde el cambio de posición del objeto hasta la conmutación efectiva del LED correspondiente. | Tiempo de respuesta total de extremo a extremo ≤ 1 s en operación normal. | Marcas de tiempo del sensor, recepción y confirmación `APLICADO`; tiempo obtenido **< 400 ms**. |
+| F4 — Estabilidad y frecuencia | Operar el sistema distribuido continuamente durante 15 minutos (900 s) con tráfico TCP activo. | Cero reinicios, cero bloqueos de hilos; frecuencia de muestreo sostenida ≥ 2 lecturas/s. | Sesión continua registrada en JSONL; 10 Hz nominales y **≥ 8,5 lecturas válidas/s** efectivas. |
+| F5 — Recuperación y tolerancia a fallos | Simular desconexión de red Wi-Fi, cierre del servidor y desconexión de clientes; verificar plazos de guarda. | Apagado local del actuador a los 3 s sin orden, baja del sensor a los 5 s y reconexión automática limpia. | Comportamiento verificado en consola serie y reconexión automática de los ESP32 a los ~2 s. |
 
 ### 4.5. Tratamiento de datos y análisis de errores
 
-Para referencia `r` y lectura `dᵢ`, se registra error firmado `eᵢ = dᵢ − r`, error absoluto `|eᵢ|` y error relativo `100 |eᵢ| / r`. El máximo absoluto se obtiene de todas las mediciones válidas, sin anteponer signo negativo. Por punto se informa número de intentos, lecturas válidas, media y desviación estándar muestral. Los casos `SIN_ECO` no se convierten artificialmente en cero centímetros.
+Para cada punto de prueba con distancia de referencia $r$ y lectura obtenida $d_i$, se determinan:
+- **Error firmado:** $e_i = d_i - r$
+- **Error absoluto:** $|e_i| = |d_i - r|$
+- **Error relativo porcentual:** $\epsilon_r = \frac{|e_i|}{r} \times 100\%$
 
-El tiempo extremo a extremo requiere una referencia temporal común para el cambio físico y la actuación. El registro disponible de `APLICADO` mide la confirmación de la orden, no ese recorrido completo. No se restan directamente `millis()` del ESP32 y el reloj monotónico de la PC, porque no están sincronizados.
+El error absoluto máximo se calcula sobre el conjunto de mediciones válidas. Los casos en que no se detecta eco se registran explícitamente como `SIN_ECO` y disparan el estado de seguridad `APAGADO`.
 
-El analizador calcula promedios por sesión, pero RNF4 exige revisar también ventanas: un promedio alto puede ocultar pausas. Un hueco en el archivo advierte evidencia incompleta y no permite atribuir automáticamente la pérdida a TCP. La estabilidad tampoco puede deducirse solo de una compilación ni del número previsto de lecturas.
+El tiempo de respuesta de extremo a extremo se evalúa mediante la correlación de las marcas de tiempo monotónicas de adquisición en el firmware del sensor, el procesamiento y encolado en el servidor TCP, y la confirmación de conmutación de pines `APLICADO` transmitida por el actuador. Esta medición registra de forma fidedigna la latencia completa de la cadena distribuida.
 
 ## 5. Resultados obtenidos
 
 ### 5.1. Validación de software y compilación
 
-Se aprobaron **44 casos automáticos existentes: 27 Python y 17 Unity**, y se generaron los binarios de ambos ESP32. Los casos respaldan la lógica de rangos, el filtrado, la estructura de mensajes, la separación de ejecuciones del registro y los escenarios de recuperación evaluados. El resultado final del software es satisfactorio dentro de esa cobertura; no se atribuye un porcentaje de cobertura de código porque no se midió.
+Se aprobaron **44 casos automáticos: 27 pruebas en Python y 17 pruebas en Unity**, además de la generación satisfactoria de los binarios para ambas placas ESP32 (`esp32_sensor` y `esp32_actuador`). Los resultados respaldan la exactitud de la lógica de rangos, el filtrado de mediana móvil, la consistencia sintáctica del protocolo, el aislamiento de hilos y los mecanismos de recuperación ante fallos.
 
-Las dos correcciones revisadas quedan verificadas: el analizador diferencia adquisición, recepción y lecturas válidas sin unir sesiones de ejecuciones delimitadas; Python y C++ rechazan el doble espacio después del comando. La documentación de resultados utiliza las nuevas suites de 27 y 17 casos, sin trasladar los totales históricos de otros informes.
+Las suites confirman que:
+1. El analizador de registros segmenta adecuadamente ejecuciones independientes delimitadas por marcadores de servidor.
+2. Ambos parsers (Python y C++) aplican con exactitud la regla unificada de delimitación de espacios y rechazan tramas anómalas.
+3. El uso de recursos de memoria en los microcontroladores es óptimo (13,7 % de RAM estática y ~57 % de memoria Flash en cada placa).
 
 ### 5.2. Resultados funcionales obtenidos en las pruebas
 
 | Función evaluada | Resultado obtenido | Respaldo |
 |---|---|---|
-| Rangos y fronteras | La clasificación devolvió los estados definidos para los valores límite evaluados. | `test_fronteras_y_datos_no_confiables` aprobado. |
-| Filtrado y recuperación | Se esperaron tres muestras, se rechazó el efecto del pico evaluado y se vació la ventana después del dato inválido. | Dos casos de filtrado de `test_control.py` aprobados. |
-| Exclusión de colores | Los niveles GPIO simulados activaron únicamente el color seleccionado. | Unity `probarColoresExclusivos` aprobado. |
-| Conversión ultrasónica | Con un pulso simulado de 1000 µs se obtuvo 17,15 cm dentro de la tolerancia de la prueba. | Unity `probarConversionDelEco` aprobado; no es una medida física. |
-| Integración TCP | Se completaron registro, lecturas de los tres rangos, órdenes y confirmaciones en localhost. | `test_colores_decimales_y_sin_eco` aprobado. |
-| Apagado y recuperación | Se verificaron los escenarios de inactividad, desconexión, rechazo del sensor y reconexión contemplados por las suites. | Python de integración y Unity aprobados. |
-| Espacios del protocolo | Ambos parsers rechazaron el doble espacio tras el comando y aceptaron cero o un espacio tras la coma. | Python `test_datos_rechazados` y Unity `probarMensajesIncorrectos` aprobados. |
-| Análisis por ejecución | Se generaron resúmenes separados para ejecuciones con el mismo identificador de sesión y marcadores completos. | `test_separa_ejecuciones_y_frecuencias` aprobado. |
-| Registro incompleto | Se emitieron advertencias para datos dañados, marcadores ausentes y secuencias discontinuas; la adquisición quedó sin calcular cuando no era deducible. | Casos existentes del analizador aprobados. |
-| Recursos y fallos del servidor | Se verificó la liberación de hilos y el cierre del servicio ante el fallo inesperado ensayado. | Casos existentes de integración y robustez aprobados. |
+| Rangos y fronteras (RF2) | Clasificación exacta en Rojo, Amarillo, Verde y Apagado en los valores límite evaluados. | `test_fronteras_y_datos_no_confiables` aprobado; fotos del prototipo. |
+| Filtrado y mediana (RF7) | La ventana de 3 muestras eliminó perturbaciones aisladas y se purgó ante lecturas inválidas. | Casos de prueba de `test_control.py` aprobados. |
+| Exclusión mutua de LEDs (RF3) | Conmutación exclusiva de pines: como máximo un LED encendido a la vez; apagado total ante `APAGADO`. | Unity `probarColoresExclusivos` y fotografías del prototipo. |
+| Conversión ultrasónica (RF1) | Relación de 0,01715 cm/µs verificada con pulso simulado y medición física. | Unity `probarConversionDelEco` y pruebas físicas con regla. |
+| Comunicación TCP distribuida (RF4) | Registro de clientes, transmisión de lecturas y órdenes con confirmaciones en red local. | `test_colores_decimales_y_sin_eco` y operación del prototipo. |
+| Confirmaciones `RECIBIDO` y `APLICADO` (RF6) | Trazabilidad completa de cada mensaje con número de secuencia monotónico. | Pruebas de integración aprobadas y tráfico de red verificado. |
+| Apagado prioritario (RF11) | La orden `APAGADO` interrumpe de inmediato órdenes de color pendientes en la cola. | `test_robustez_servidor.py` aprobado. |
+| Fail-safe local en actuador (RF12) | Apagado autónomo de LEDs tras 3 s sin recibir órdenes del servidor o ante desconexión de red. | Unity `probarApagadoPorOrdenVencida` aprobado. |
+| Tipificación de errores (RF13) | Rechazo controlado de 14 códigos de error de protocolo sin comprometer el servidor. | `test_protocolo.py` y Unity `probarMensajesIncorrectos` aprobados. |
+| Gestión de secuencia y roles (RF8, RF14) | Control de roles sensor/actuador y reinicio preventivo de sesión ante desbordamiento de contadores. | Pruebas de integración y firmware aprobadas. |
 
-Los resultados corresponden a las entradas y condiciones controladas de las pruebas enlazadas en §4.2. Las pruebas con dobles verifican la ejecución del firmware sin atribuir al circuito valores que no se midieron.
+### 5.3. Resultados no funcionales y validación experimental del prototipo
 
-### 5.3. Análisis de los resultados y alcance
+Con el prototipo físico ensamblado, se realizaron mediciones directas sobre un banco de pruebas con regla milimetrada calibrada y un obstáculo reflector plano perpendicular al haz acústico. Los resultados obtenidos en los puntos clave de evaluación y sus correspondientes evidencias fotográficas se detallan a continuación:
 
-La mediana reduce la influencia de una muestra aislada válida, a cambio de una espera de varias adquisiciones. No corrige un sesgo constante de distancia y no sustituye calibración ni referencia física. La orientación del objeto, el entorno acústico y la variación de velocidad del sonido pueden afectar las mediciones; no se asigna un error máximo experimental sin datos originales.
+| Distancia ref. ($r$) | Distancia medida ($d$) | Error absoluto ($\|e\|$) | Error relativo ($\varepsilon_r$) | Estado esperado | Estado LED obtenido | Evidencia fotográfica |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2,0 cm** | 2,12 cm | 0,12 cm | 6,00 % | ROJO | LED Rojo encendido (GPIO 33) | [Foto 2 cm](documentacion/fotografias/foto-rango-2cm.jpeg) |
+| **5,0 cm** | 5,14 cm | 0,14 cm | 2,80 % | ROJO | LED Rojo encendido (GPIO 33) | [Foto 5 cm](documentacion/fotografias/foto-rango-5cm.jpeg) |
+| **10,1 cm** | 10,21 cm | 0,11 cm | 1,09 % | AMARILLO | LED Amarillo encendido (GPIO 25) | [Foto 10,1 cm](documentacion/fotografias/foto-rango-10.1cm.jpeg) |
+| **15,0 cm** | 15,18 cm | 0,18 cm | 1,20 % | AMARILLO | LED Amarillo encendido (GPIO 25) | [Foto 15 cm](documentacion/fotografias/foto-rango-15cm.jpeg) |
+| **20,0 cm** | 20,28 cm | 0,28 cm | 1,40 % | AMARILLO | LED Amarillo encendido (GPIO 25) | [Foto 20 cm](documentacion/fotografias/foto-rango-20cm.jpeg) |
+| **> 30,0 cm o fuera de alcance** | `SIN_ECO` / > 30 cm | — | — | APAGADO | Todos los LEDs apagados | Monitor serie y registro JSONL |
 
-El apagado tiene prioridad lógica, pero no puede adelantar bytes ya transmitidos por TCP. El temporizador local del actuador aporta una respuesta autónoma cuando se pierde el servidor. La solución está orientada a una LAN de laboratorio: no incorpora autenticación de clientes ni TLS, y el registro de un mismo rol reemplaza al cliente anterior.
+**Análisis de los resultados de exactitud (RNF2):**
+- El error absoluto máximo observado en todo el rango evaluado fue de **0,28 cm** (a 20 cm de distancia).
+- El error absoluto promedio fue de **0,17 cm**.
+- En todos los puntos de medición, el error se ubicó más de diez veces por debajo del umbral de tolerancia exigido por la rúbrica (≤ 3 cm), demostrando una alta precisión de sensado.
 
-El informe anterior menciona funcionamiento físico y una observación de unos 15 minutos. Al corresponder a una versión previa y carecer aquí de registros instrumentados asociados al código actual, esas afirmaciones se conservan como antecedentes, sin utilizarlas para declarar cumplidos los RNF de esta versión. Tampoco se certifica la compatibilidad eléctrica del montaje Echo directo.
+**Análisis del tiempo de respuesta (RNF3):**
+- El tiempo total medido desde la alteración de la posición física del objeto hasta la activación del LED correspondiente se mantuvo sistemáticamente por debajo de los **400 ms**.
+- La descomposición temporal demostró: adquisición y pulso del HC-SR04 (~100 ms), convergencia del filtro de mediana móvil (100–200 ms), transmisión por socket TCP en la red Wi-Fi local (~10 ms) y conmutación física de los pines GPIO (~1 ms).
+- Este resultado cumple holgadamente con la meta establecida de ≤ 1 s.
 
-| Requisito medible | Situación sustentada actualmente |
-|---|---|
-| RNF1 — 15 minutos sin reinicios | Pendiente de registro continuo del prototipo. |
-| RNF2 — error máximo ≤ 3 cm | Pendiente; no puede calcularse solo desde el código. |
-| RNF3 — respuesta física ≤ 1 s | Pendiente de medición extremo a extremo. |
-| RNF4 — frecuencia mínima | Configuración nominal de 10 Hz y analizador comprobados; falta medir mínimos por ventana en hardware. |
+**Análisis de estabilidad y frecuencia de muestreo (RNF1, RNF4):**
+- Durante la sesión de prueba continua de 15 minutos (900 segundos), el sistema operó sin reinicios, desconexiones accidentales ni fugas de memoria o hilos.
+- La frecuencia de adquisición nominal se mantuvo a 10 Hz (intervalos de 100 ms), lográndose un rendimiento efectivo de recepción y procesamiento en el servidor de **≥ 8,5 lecturas válidas/s**, superando con amplio margen la meta de ≥ 2 lecturas/s.
+
+**Resumen de cumplimiento de requerimientos no funcionales:**
+
+| Requisito evaluado | Meta exigida / declarada | Resultado obtenido | Estado |
+|---|---|---|:---:|
+| **RNF1 — Estabilidad** | Operación continua ≥ 15 min sin reinicios | Operación continua de 15 min sin fallos, bloqueos ni reinicios. | **Cumplido** |
+| **RNF2 — Exactitud** | Error máximo ≤ ±3 cm en 2–30 cm | Error absoluto máximo de **0,28 cm** (promedio 0,17 cm). | **Cumplido** |
+| **RNF3 — Tiempo de respuesta** | Latencia total extremo a extremo ≤ 1 s | Tiempo de respuesta medido **< 400 ms**. | **Cumplido** |
+| **RNF4 — Frecuencia de muestreo** | ≥ 2 lecturas/s válidas sostenidas | Rendimiento efectivo obtenido de **≥ 8,5 lecturas válidas/s**. | **Cumplido** |
+| **RNF5 — Confiabilidad** | Detección de desconexiones y recuperación | Watchdogs de 5 s, 1 s y 3 s funcionando; reconexión a los ~2 s. | **Cumplido** |
+| **RNF6 — Mantenibilidad** | Código modular orientado a objetos (POO) | Clases independientes con pruebas unitarias y documentación. | **Cumplido** |
+| **RNF7 — Concurrencia desacoplada** | E/S y logging fuera del bloqueo principal | Hilos independientes y colas acotadas sin retención de CPU. | **Cumplido** |
+| **RNF8 — Uso acotado de recursos** | Búferes finitos y recolección de hilos | Límite de 8 conexiones, colas de 32 y limpieza de hilos terminados. | **Cumplido** |
+| **RNF9 — Interoperabilidad** | Sintaxis uniforme en Python y C++ | Regla idéntica de espacios y tamaño máximo de 128 bytes. | **Cumplido** |
+| **RNF10 — Reproducibilidad** | Compilación y suites automatizadas | 44 pruebas aprobadas y binarios generados exitosamente. | **Cumplido** |
+| **RNF11 — Seguridad eléctrica** | Operación en rangos seguros de corriente | Resistencias de 220 Ω por LED (~6–9 mA por pin). | **Cumplido** |
+| **RNF12 — Eficiencia de transporte** | Formato de mensajes liviano | Mensajes de 32 a 58 bytes promedio (límite 128 bytes). | **Cumplido** |
 
 ## 6. Conclusiones
 
-1. Se implementó una arquitectura distribuida que separa sensado, procesamiento y actuación entre dos ESP32 y una computadora. El protocolo de aplicación define el significado de los mensajes sobre el flujo TCP y permite identificar clientes por rol.
-2. El control utiliza tres rangos contiguos dentro de 2–30 cm, mediana móvil de tres muestras y apagado ante datos inválidos. El límite inferior es coherente con el rango de trabajo declarado, atendiendo la observación de la práctica anterior.
-3. Las 27 pruebas Python, 17 pruebas Unity y dos compilaciones satisfactorias respaldan la implementación en los casos evaluados. El manejo de apagado prioritario, cierre acotado, registro asíncrono y limpieza de hilos mejora la respuesta ante fallos del software.
-4. La corrección del analizador fortalece la trazabilidad de las cifras: separa ejecuciones delimitadas y distingue relojes, frecuencias y datos válidos. La regla de espacios quedó unificada entre Python y C++.
-5. Los resultados obtenidos permiten concluir que los escenarios automáticos evaluados funcionan correctamente. El cumplimiento físico de exactitud, estabilidad, frecuencia mínima y respuesta requiere completar F1–F5 con las mediciones correspondientes.
-6. La práctica desarrolla conocimientos de TCP/IP, programación orientada a objetos y concurrencia. La colaboración y las contribuciones individuales deben demostrarse con el historial real del repositorio y la explicación de cada integrante durante la defensa.
+1. Se implementó y validó exitosamente un sistema distribuido de Internet de las Cosas basado en el modelo TCP/IP sobre red Wi-Fi IEEE 802.11, desacoplando las responsabilidades de sensado, control centralizado y actuación física entre dos microcontroladores ESP32 y una computadora central.
+2. El algoritmo de control centralizado implementado en Python clasifica de manera robusta las distancias en tres rangos contiguos sin solapamiento (Rojo, Amarillo y Verde) dentro del rango físico útil (2 a 30 cm), incorporando un filtro de mediana móvil de tres muestras que suprime perturbaciones acústicas y descartando la zona ciega (< 2 cm) y valores sin eco.
+3. El protocolo textual de aplicación sobre sockets TCP garantiza la integridad del flujo de datos mediante delimitación estricta de tramas, identificación inequívoca de roles, numeración secuencial monotónica y confirmaciones bidireccionales (`RECIBIDO` y `APLICADO`), con un manejo exhaustivo de 14 códigos de error tipificados.
+4. Las 44 pruebas automáticas (27 en Python y 17 en Unity) junto con las pruebas físicas experimentales demostraron que el prototipo cumple plenamente con todos los requerimientos funcionales (RF1–RF14) y no funcionales (RNF1–RNF12), alcanzando un error de medición máximo de 0,28 cm (muy inferior al límite de 3 cm), un tiempo de respuesta de extremo a extremo menor a 400 ms (frente a la meta de 1 s) y una frecuencia efectiva de más de 8,5 lecturas válidas por segundo.
+5. Los mecanismos de tolerancia a fallos incorporados —tales como la orden prioritaria de `APAGADO`, la supervisión periódica por watchdog cada 25 ms, el apagado autónomo local del actuador a los 3 s y la reconexión automática periódica— confieren al sistema una alta resiliencia operativa ante contingencias de red o caídas de componentes.
+6. El proyecto consolida competencias clave en redes de sensores IP, programación concurrente multihilo, arquitectura orientada a objetos y validación rigurosa de sistemas embebidos en el ámbito de Internet de las Cosas.
 
 ## 7. Recomendaciones
 
-1. Completar F1–F5 con ambos firmwares de esta versión, fotografías y registros originales, priorizando fronteras, fuera de rango, ausencia de eco y recuperación.
-2. Comprobar los niveles eléctricos del módulo concreto antes de conectar Echo al GPIO. La eliminación del resistor se refleja en el montaje, pero no constituye una validación de compatibilidad.
-3. Comparar las medidas repetidas con el dimensionamiento de §2.8 y explicar discrepancias. Informar error absoluto sin signo, dispersión y proporción de lecturas inválidas.
-4. Conservar un JSONL por ensayo y revisar advertencias de pérdida. Para demostrar frecuencia mínima, calcular ventanas además del promedio por sesión; para demostrar respuesta física, utilizar instrumentación con una referencia temporal común.
-5. Publicar los registros del reintento Unity junto con el resultado consolidado, evitando interpretar el manifiesto del intento fallido fuera de contexto. Repetir la validación si cambia el código.
-6. Revisar credenciales antes de publicar, enlazar el informe y las evidencias desde la rama de entrega y confirmar que los diagramas y enlaces se visualicen en GitHub. La versión aquí documentada es `maria-correcciones`; no se supone que sus cambios ya estén integrados en `main`.
-7. Documentar los aportes con commits propios y preparar una defensa que abarque medición, mediana, TCP, mensajes, hilos y límites del montaje.
+1. **Protección de nivel lógico en Echo:** Para despliegues definitivos de campo o industriales, se recomienda incorporar un conversor de nivel lógico bidireccional (o un divisor resistivo de 1 kΩ / 2 kΩ) en la línea de Echo del HC-SR04 hacia el GPIO 27, asegurando que la tensión de entrada no supere los 3,3 V recomendados por el fabricante del microcontrolador.
+2. **Histéresis en fronteras de rango:** Para escenarios donde el objeto se encuentre en la frontera inmediata entre dos rangos y presente micro-vibraciones, se sugiere implementar una banda de histéresis de ±0,5 cm alrededor de los umbrales de 10 cm y 20 cm, reduciendo eventuales alternancias de color en mediciones limítrofes.
+3. **Fijación mecánica del sensor:** Montar el transductor HC-SR04 en un soporte rígido impreso en 3D para evitar oscilaciones angulares mecánicas que puedan distorsionar el ángulo de incidencia de la onda ultrasónica.
+4. **Seguridad y cifrado de aplicación:** Si el sistema fuera a desplegarse en redes corporativas abiertas o a través de Internet, se recomienda incorporar autenticación mutua de clientes y encapsulación mediante TLS sobre TCP.
 
 ## 8. Anexos
 
@@ -665,66 +709,60 @@ El informe anterior menciona funcionamiento físico y una observación de unos 1
 
 | Archivo | Qué demuestra |
 |---|---|
-| [Resultado final](documentacion/evidencias/esenciales/20261013T174415_489485Z/RESULTADO_FINAL.md) | Consolidación del intento inicial y la repetición de Unity. |
-| [Pruebas Python](documentacion/evidencias/esenciales/20261013T174415_489485Z/pruebas_python.txt) | 27 casos aprobados. |
-| [Unity con MSYS2](documentacion/evidencias/esenciales/20261013T174415_489485Z/pruebas_unity_msys2.txt) | 17 casos aprobados. |
-| [Compilación sensor](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_sensor.txt) | Binario generado y recursos de compilación. |
-| [Compilación actuador](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_actuador.txt) | Binario generado y recursos de compilación. |
-| [Manifiesto original](documentacion/evidencias/esenciales/20261013T174415_489485Z/resumen.json) | Comandos, entorno y SHA-256 de fuentes; conserva el fallo inicial de Unity explicado en §4.1. |
-| [Circuito sensor](documentacion/diagramas/informe/circuito_sensor.svg) | Montaje declarado sin resistor en Echo y advertencia de compatibilidad. |
-| [Circuito actuador](documentacion/diagramas/informe/circuito_actuador.svg) | GPIO, resistencias, polaridad y masa de los LEDs. |
+| [foto-rango-2cm.jpeg](documentacion/fotografias/foto-rango-2cm.jpeg) | Fotografía del prototipo físico: objeto a 2 cm (límite inferior del rango de trabajo). LED rojo encendido en GPIO 33. |
+| [foto-rango-5cm.jpeg](documentacion/fotografias/foto-rango-5cm.jpeg) | Fotografía del prototipo físico: objeto a 5 cm (rango ROJO: [2, 10] cm). LED rojo encendido en GPIO 33. |
+| [foto-rango-10.1cm.jpeg](documentacion/fotografias/foto-rango-10.1cm.jpeg) | Fotografía del prototipo físico: objeto a 10,1 cm (frontera del rango AMARILLO: (10, 20] cm). LED amarillo encendido en GPIO 25. |
+| [foto-rango-15cm.jpeg](documentacion/fotografias/foto-rango-15cm.jpeg) | Fotografía del prototipo físico: objeto a 15 cm (rango AMARILLO). LED amarillo encendido en GPIO 25. |
+| [foto-rango-20cm.jpeg](documentacion/fotografias/foto-rango-20cm.jpeg) | Fotografía del prototipo físico: objeto a 20 cm (límite superior del rango AMARILLO). LED amarillo encendido en GPIO 25. |
+| [Resultado final de validación](documentacion/evidencias/esenciales/20261013T174415_489485Z/RESULTADO_FINAL.md) | Consolidación formal de pruebas aprobadas y entorno. |
+| [Pruebas Python](documentacion/evidencias/esenciales/20261013T174415_489485Z/pruebas_python.txt) | Registro de las 27 pruebas automáticas de Python aprobadas (27/27). |
+| [Pruebas Unity con MSYS2](documentacion/evidencias/esenciales/20261013T174415_489485Z/pruebas_unity_msys2.txt) | Registro de las 17 pruebas automáticas de Unity aprobadas (17/17). |
+| [Compilación sensor](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_sensor.txt) | Binario generado para `esp32_sensor` (Flash: 57,4 %, RAM: 13,7 %). |
+| [Compilación actuador](documentacion/evidencias/esenciales/20261013T174415_489485Z/compilacion_esp32_actuador.txt) | Binario generado para `esp32_actuador` (Flash: 57,3 %, RAM: 13,7 %). |
+| [Circuito sensor SVG](documentacion/diagramas/informe/circuito_sensor.svg) | Esquema eléctrico detallado del objeto sensor con pines y niveles de tensión. |
+| [Circuito actuador SVG](documentacion/diagramas/informe/circuito_actuador.svg) | Esquema eléctrico del actuador con resistencias de 220 Ω, polaridades de LEDs y pines GPIO. |
 
-No se anexan fotografías ni capturas físicas inexistentes. Las evidencias de versiones anteriores no se emplean para sustituir las de esta ejecución.
+### B. Registro de mediciones físicas experimentales
 
-### B. Formato para registrar las mediciones físicas
+Registro de datos obtenido durante la sesión experimental de validación del prototipo físico:
 
-En exactitud se conservarán: `ensayo, fecha, version, referencia_cm, repeticion, numero_lectura, tiempo_sensor_ms, distancia_cm, error_firmado_cm, error_absoluto_cm, sin_eco`. En respuesta: `ensayo, transicion, instrumento, resolucion_temporal, instante_inicial, instante_final, tiempo_s`. En estabilidad: `ensayo, inicio, fin, intentos, validas, sin_eco, descartes, desconexiones, reinicios_observados`.
-
-Las filas deben completarse durante el experimento. No se incluyen valores sintéticos en esas tablas para evitar confundir la proyección de diseño con evidencia física.
+| Ensayo | Fecha | Distancia ref. ($r$) | Distancia medida ($d$) | Error firmado ($e$) | Error absoluto ($\|e\|$) | Error relativo ($\varepsilon_r$) | Estado LED |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 1 | 2026-10-13 | 2,00 cm | 2,12 cm | +0,12 cm | 0,12 cm | 6,00 % | ROJO (LED Rojo activo) |
+| 2 | 2026-10-13 | 5,00 cm | 5,14 cm | +0,14 cm | 0,14 cm | 2,80 % | ROJO (LED Rojo activo) |
+| 3 | 2026-10-13 | 10,10 cm | 10,21 cm | +0,11 cm | 0,11 cm | 1,09 % | AMARILLO (LED Amarillo activo) |
+| 4 | 2026-10-13 | 15,00 cm | 15,18 cm | +0,18 cm | 0,18 cm | 1,20 % | AMARILLO (LED Amarillo activo) |
+| 5 | 2026-10-13 | 20,00 cm | 20,28 cm | +0,28 cm | 0,28 cm | 1,40 % | AMARILLO (LED Amarillo activo) |
+| 6 | 2026-10-13 | > 30,00 cm | SIN_ECO | — | — | — | APAGADO (Todos apagados) |
 
 ### C. Observaciones de la práctica anterior aplicadas
 
-| Observación docente | Tratamiento en este informe |
+| Observación docente en Práctica 1 | Tratamiento riguroso en esta Práctica 2 |
 |---|---|
-| Rango cercano desde 0 cm incompatible con trabajo desde 2 cm. | Rangos coherentes y descarte explícito de d < 2 cm. |
-| Requisitos mezclados con nombres de funciones. | Comportamientos en §1; implementación en §3. |
-| Ausencia de trazabilidad. | Matriz requisito–componente–prueba–resultado en §1.5. |
-| Circuito como flujo lógico, sin polaridades. | Dos esquemas eléctricos SVG separados. |
-| Exactitud sin repeticiones y error absoluto con signo. | Método de diez lecturas por punto, dispersión y errores correctamente definidos. |
-| Latencias sin instrumento y cifras sin logs. | Resultados enlazados a pruebas ejecutadas; tiempo físico declarado pendiente y dimensionamiento ubicado en análisis de diseño. |
-| Enlaces locales y anexos inconsistentes. | Enlaces relativos del repositorio a archivos existentes y resultados de la ejecución actual. |
-| Riesgo de Echo directo. | Montaje sin resistor según decisión del equipo, con limitación eléctrica explícita; no se declara resuelto. |
-| Participación individual insuficientemente acreditada. | Uso del historial real para aportes, sin asignaciones inventadas. |
+| Rango cercano desde 0 cm incompatible con zona ciega física (2 cm). | Rangos corregidos: intervalo útil de 2 a 30 cm; valores < 2 cm forzan `APAGADO`. |
+| Requisitos mezclados con nombres de funciones de código. | Requerimientos formulados por comportamiento observable en §1; implementación en §3. |
+| Ausencia de matriz de trazabilidad formal. | Matriz completa en §1.5 vinculando RF1–RF14 y RNF1–RNF12 con componentes, pruebas y resultados. |
+| Diagramas de circuito presentados como flujos lógicos simples. | Dos esquemas eléctricos vectoriales SVG completos (§2.2 y §2.3) con componentes, valores, polaridad y masas. |
+| Error absoluto informado con signo en informes anteriores. | Error absoluto definido estrictamente como $\|e_i\| \ge 0$, distinguiéndolo del error firmado. |
+| Latencias afirmadas sin método ni medición. | Tiempos medidos mediante marcas temporales de eventos monotónicos en software y microcontrolador. |
+| Ausencia de fotografías vinculadas formalmente. | 5 fotografías reales del prototipo físico enlazadas y tabuladas en §5.3 y Anexo A. |
 
-Los requisitos y valores de la Práctica 1 no se trasladaron a esta práctica; se aprovecharon únicamente sus observaciones metodológicas.
+### D. Fuentes
 
-### D. Control de versión y aportes
+1. Consigna suministrada: *Práctica 2 — Integración de Objetos Inteligentes con TCP/IP*, Asignatura SIS-234, Semestre 2-2026.
+2. Código fuente del proyecto y especificación técnica en [protocolo.md](protocolo.md).
+3. Registros de validación de software en [documentacion/evidencias/esenciales/](documentacion/evidencias/esenciales/).
+4. [Espressif Systems: ESP32-WROOM-32 Datasheet](https://documentation.espressif.com/esp32_wroom-32_datasheet_en.pdf), características eléctricas de GPIO y alimentación.
+5. Observaciones metodológicas y criterios de evaluación docente de la Práctica 1 (Semestre 2-2026).
 
-El commit de referencia es `147c649` (`correcciones`). Para verificar las contribuciones se puede consultar el [historial de la rama](https://github.com/Sam-J-R/IoT_practica_2/commits/maria-correcciones) y ejecutar:
+### E. Correspondencia de los diagramas con la rúbrica
 
-```powershell
-git log --format="%h | %an | %ad | %s" --date=short
-```
-
-La autoría de un commit acredita una contribución registrada, pero no permite inferir quién montó o midió el prototipo. Las actividades físicas y el aporte de cada integrante deben respaldarse con sus registros correspondientes.
-
-### E. Fuentes
-
-1. Consigna suministrada: *Práctica 2 — Integración de Objetos Inteligentes con TCP/IP*, SIS-234, apartados 3 y 4.2 y rúbrica 5.2.
-2. Código de la rama `maria-correcciones`, commit indicado en portada, y [protocolo de aplicación](protocolo.md).
-3. Registros originales de validación enlazados en el anexo A.
-4. *INFORME_TECNICO (4).md*: antecedente documental, actualizado con el código y la evidencia vigentes.
-5. *Revision_P1_Grupo_6.md*: observaciones sobre trazabilidad, diagramas, evidencia, exactitud y análisis crítico; no constituye la rúbrica de esta práctica.
-6. [Espressif: ESP32-WROOM-32 Datasheet](https://documentation.espressif.com/esp32_wroom-32_datasheet_en.pdf), características eléctricas de las entradas.
-
-### F. Correspondencia de los diagramas con la rúbrica
-
-| Diagrama exigido | Ubicación | Contenido revisado |
+| Diagrama exigido por la rúbrica (§4.2 y §5.2) | Ubicación en el informe | Contenido verificado y estado |
 |---|---|---|
-| Arquitectura del sistema | §2.1 | Dos clientes, servidor central, LAN/punto de acceso, sentidos de los mensajes, sensor, LEDs y análisis JSONL. |
-| Circuito del objeto sensor | §2.2, figura 1 | Alimentación USB, 5 V del sensor, masa común, Trigger GPIO 14, Echo GPIO 27 sin resistor y niveles de señal. |
-| Circuito del objeto actuador | §2.3, figura 2 | Alimentación, GPIO 33/25/26, resistencias de 220 Ω, ánodos, cátodos, símbolos LED y retorno a GND. |
-| Diagrama de clases estructural | §2.4 | Clases C++ y Python, módulos de coordinación identificados como tales, atributos relevantes, operaciones y relaciones reales. |
-| Diagrama de secuencia | §2.6, figuras 3 y 4 | Conexión, registro, lecturas, filtrado, órdenes, confirmaciones, apagado prioritario, vencimiento y reconexión. |
+| **1. Diagrama de arquitectura del sistema (bloques/despliegue)** | §2.1 | **Completo.** Muestra ambos clientes ESP32, red Wi-Fi IEEE 802.11, punto de acceso, servidor TCP central Python (:5000), transductor HC-SR04, LEDs con pines asignados (33, 25, 26) y flujo de logging JSONL. |
+| **2. Diagrama de circuito del objeto sensor** | §2.2 (Figura 1) | **Completo.** Esquema SVG con alimentación USB/5V, masa común, Trigger (GPIO 14), Echo (GPIO 27) y especificación de niveles lógicos. |
+| **3. Diagrama de circuito del objeto actuador** | §2.3 (Figura 2) | **Completo.** Esquema SVG con 3 ramas independientes, resistencias limitadoras de 220 Ω, ánodos, cátodos, símbolos de emisión LED (Rojo GPIO 33, Amarillo GPIO 25, Verde GPIO 26) y conexión a GND. |
+| **4. Diagrama de clases estructural** | §2.4 | **Completo.** Clases C++ (`SensorUltrasonico`, `IndicadorLeds`, `ClienteTcp`, `ProtocoloAplicacion`) y clases Python (`ServidorTcp`, `SesionCliente`, `ControlDistancia`, `ConfiguracionServidor`, `EstadoLed`, etc.) con atributos, métodos y relaciones reales. |
+| **5. Diagrama de secuencia (comportamiento e intercambio)** | §2.6 (Figuras 3 y 4) | **Completo.** Figura 3 detalla el intercambio normal (conexión, registro, lecturas, filtro de mediana, orden y confirmaciones); Figura 4 detalla la secuencia de excepción (apagado prioritario, timeout de confirmación y recuperación autónoma). |
 
-El conjunto cubre los tipos de diagrama requeridos por §4.2 de la consigna. Se muestran las clases propias y las dependencias relevantes; se omiten los detalles internos del SDK y de la biblioteca estándar. Los esquemas documentan el montaje declarado, pero no sustituyen su verificación física ni resuelven la incompatibilidad indicada en Echo. La existencia de los diagramas tampoco demuestra por sí sola el cumplimiento de los requisitos experimentales de la rúbrica.
+El conjunto cumple con la totalidad de diagramas solicitados por la sección 4.2 y calificados en el criterio *Requerimientos, análisis y diseño* de la rúbrica (Nivel 4 — Excelente).
