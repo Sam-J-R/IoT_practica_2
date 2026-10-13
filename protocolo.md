@@ -1,6 +1,6 @@
 # Protocolo de aplicación — Práctica 2
 
-Especificación del protocolo de texto entre el cliente sensor, el cliente actuador y el servidor TCP en Python. Se recupera la organización del documento inicial; los mensajes y el comportamiento corresponden al código actual, versión 1.
+Especificación del protocolo de texto entre el cliente sensor, el cliente actuador y el servidor TCP multihilo en Python. La gramática de mensajes se mantiene en la versión 1; los hilos son una decisión interna de implementación del servidor y no cambian la comunicación entre equipos.
 
 ## 1. Visión general
 

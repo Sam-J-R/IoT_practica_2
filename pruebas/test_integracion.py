@@ -1,245 +1,280 @@
-"""TCP real en localhost con reloj controlado para probar plazos sin esperas."""
+"""Pruebas de integración TCP reales contra el servidor con hilos.
+
+Usan localhost y tiempos cortos para no requerir ESP32. Se comprueba
+el comportamiento observable; las pruebas no modifican el reloj interno.
+"""
 import socket
+import threading
+import time
 import unittest
 
-from servidor.control import ConfiguracionServidor
-from servidor.control import EstadoLed
-from servidor.protocolo import ReceptorLineas
+from servidor.control import ConfiguracionServidor, EstadoLed
 from servidor.servidor import ServidorTcp
 
 
 class RegistroMemoria:
     def __init__(self):
         self.eventos = []
+        self.bloqueo = threading.Lock()
+
     def registrar(self, evento, **datos):
-        self.eventos.append((evento, datos))
+        with self.bloqueo:
+            self.eventos.append((evento, datos))
+
     def cerrar(self):
         pass
 
 
-class PruebasIntegracion(unittest.TestCase):
+class ClientePrueba:
+    def __init__(self, puerto):
+        self.conexion = socket.create_connection(("127.0.0.1", puerto), timeout=1)
+        self.conexion.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.pendiente = b""
+
+    def enviar(self, mensaje):
+        self.conexion.sendall((mensaje + "\n").encode("ascii"))
+
+    def leer(self, plazo=0.7):
+        limite = time.monotonic() + plazo
+        while b"\n" not in self.pendiente:
+            restante = limite - time.monotonic()
+            if restante <= 0:
+                raise AssertionError("No llegó un mensaje TCP dentro del plazo")
+            self.conexion.settimeout(restante)
+            try:
+                datos = self.conexion.recv(4096)
+            except socket.timeout as exc:
+                raise AssertionError("Se agotó el tiempo de recepción TCP") from exc
+            if not datos:
+                raise AssertionError("El cliente se desconectó antes del mensaje esperado")
+            self.pendiente += datos
+        linea, self.pendiente = self.pendiente.split(b"\n", 1)
+        return linea.rstrip(b"\r").decode("ascii")
+
+    def esperar_cierre(self, plazo=1):
+        limite = time.monotonic() + plazo
+        while time.monotonic() < limite:
+            self.conexion.settimeout(max(0.01, limite - time.monotonic()))
+            try:
+                if self.conexion.recv(1024) == b"":
+                    return True
+            except (OSError, socket.timeout):
+                continue
+        return False
+
+    def cerrar(self):
+        self.conexion.close()
+
+
+class PruebasIntegracionHilos(unittest.TestCase):
     def setUp(self):
-        self.ahora = 100.0
+        self.config = ConfiguracionServidor(direccion="127.0.0.1", puerto=0)
+        self.config.espera_registro = 0.5
+        self.config.espera_confirmacion = 0.6
+        self.config.inactividad_sensor = 5.0
+        self.config.intervalo_refresco = 5.0
         self.registro = RegistroMemoria()
-        self.servidor = ServidorTcp(ConfiguracionServidor(direccion="127.0.0.1", puerto=0),
-                                   self.registro, lambda: self.ahora)
+        self.servidor = ServidorTcp(self.config, self.registro)
         self.servidor.iniciar()
-        self.conexiones = []
-        self.receptores = {}
+        self.clientes = []
 
     def tearDown(self):
         self.servidor.cerrar()
-        for conexion in self.conexiones:
-            conexion.close()
+        for cliente in self.clientes:
+            cliente.cerrar()
 
-    def procesar_red(self):
-        for _ in range(8):
-            self.servidor.ejecutar_paso(0.001)
+    def esperar(self, predicado, plazo=0.8):
+        limite = time.monotonic() + plazo
+        while time.monotonic() < limite:
+            with self.servidor.bloqueo:
+                if predicado():
+                    return True
+            time.sleep(0.005)
+        return False
 
-    def conectar(self):
-        conexion = socket.create_connection(("127.0.0.1", self.servidor.puerto), timeout=1)
-        conexion.setblocking(False)
-        self.conexiones.append(conexion)
-        self.receptores[conexion] = ReceptorLineas()
-        self.procesar_red()
-        return conexion
-
-    def enviar(self, conexion, linea):
-        conexion.sendall((linea + "\n").encode("ascii"))
-        self.procesar_red()
-
-    def leer(self, conexion):
-        self.procesar_red()
-        lineas = []
-        while True:
-            try:
-                datos = conexion.recv(4096)
-            except BlockingIOError:
-                break
-            if not datos:
-                break
-            lineas.extend(self.receptores[conexion].recibir(datos))
-        return lineas
+    def nuevo(self):
+        cliente = ClientePrueba(self.servidor.puerto)
+        self.clientes.append(cliente)
+        return cliente
 
     def registrar(self, rol):
-        conexion = self.conectar()
-        self.enviar(conexion, f"REGISTRO tipo={rol}, version=1")
-        lineas = self.leer(conexion)
-        self.assertEqual(lineas[0], "ACEPTADO REGISTRO")
+        cliente = self.nuevo()
+        cliente.enviar(f"REGISTRO tipo={rol}, version=1")
+        self.assertEqual(cliente.leer(), "ACEPTADO REGISTRO")
         if rol == "actuador":
-            self.assertTrue(lineas[1].startswith("ORDEN numero=1, estado="))
-            self.enviar(conexion, "APLICADO numero=1")
-            self.assertEqual(self.leer(conexion), [])  # No bucle de respuestas.
-        return conexion
+            self.assertEqual(cliente.leer(), "ORDEN numero=1, estado=APAGADO")
+            cliente.enviar("APLICADO numero=1")
+            self.assertTrue(self.esperar(lambda: self.servidor.roles.get('actuador') is not None
+                                        and self.servidor.roles['actuador'].numero_pendiente == 0))
+        return cliente
 
-    def lectura(self, conexion, numero, distancia):
-        self.enviar(conexion,
-                    f"LECTURA numero={numero}, tiempo_ms={numero * 100}, distancia_cm={distancia}")
-        self.assertEqual(self.leer(conexion), [f"RECIBIDO numero={numero}"])
+    def lectura(self, cliente, numero, distancia):
+        cliente.enviar(f"LECTURA numero={numero}, tiempo_ms={numero*100}, distancia_cm={distancia}")
+        self.assertEqual(cliente.leer(), f"RECIBIDO numero={numero}")
 
-    def test_recorrido_tres_rangos_y_sin_eco(self):
+    def tres_lecturas(self, sensor, desde, distancia):
+        for numero in range(desde, desde + 3):
+            self.lectura(sensor, numero, distancia)
+
+    def test_colores_decimales_y_sin_eco(self):
         actuador = self.registrar("actuador")
         sensor = self.registrar("sensor")
-        numero = 0
-        orden = 1
-        for distancia, estado in ((5.25, "ROJO"), (15.2, "AMARILLO"), (25.1, "VERDE")):
-            for _ in range(3):
-                numero += 1
-                self.lectura(sensor, numero, distancia)
-            orden += 1
-            self.assertEqual(self.leer(actuador), [f"ORDEN numero={orden}, estado={estado}"])
-            self.enviar(actuador, f"APLICADO numero={orden}")
-        self.lectura(sensor, numero + 1, "SIN_ECO")
-        self.assertEqual(self.leer(actuador), [f"ORDEN numero={orden + 1}, estado=APAGADO"])
+        for i, (distancia, color) in enumerate(((5.25, "ROJO"), (15.2, "AMARILLO"),
+                                                (25.1, "VERDE"))):
+            self.tres_lecturas(sensor, 1 + 3*i, distancia)
+            orden = i + 2
+            self.assertEqual(actuador.leer(), f"ORDEN numero={orden}, estado={color}")
+            actuador.enviar(f"APLICADO numero={orden}")
+            self.assertTrue(self.esperar(lambda: self.servidor.roles['actuador'].numero_pendiente == 0))
+        self.lectura(sensor, 10, "SIN_ECO")
+        self.assertEqual(actuador.leer(), "ORDEN numero=5, estado=APAGADO")
 
-    def test_inactividad_exactamente_cinco_segundos(self):
+    def test_inactividad_sensor_apaga_leds(self):
+        self.config.inactividad_sensor = 0.35
         actuador = self.registrar("actuador")
         sensor = self.registrar("sensor")
-        for numero in range(1, 4):
-            self.lectura(sensor, numero, 5)
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=2, estado=ROJO"])
-        self.enviar(actuador, "APLICADO numero=2")
-        # Confirmar los refrescos para que solo venza la actividad del sensor.
-        for numero in range(3, 7):
-            self.ahora += 1.0
-            self.procesar_red()
-            self.assertEqual(self.leer(actuador), [f"ORDEN numero={numero}, estado=ROJO"])
-            self.enviar(actuador, f"APLICADO numero={numero}")
-        self.ahora += 0.99
-        self.procesar_red()
+        self.tres_lecturas(sensor, 1, 5.2)
+        self.assertEqual(actuador.leer(), "ORDEN numero=2, estado=ROJO")
+        actuador.enviar("APLICADO numero=2")
+        self.assertTrue(self.esperar(lambda: self.servidor.roles['actuador'].numero_pendiente == 0))
+        time.sleep(0.12)
         self.assertIn("sensor", self.servidor.roles)
-        self.assertEqual(self.servidor.control.estado, EstadoLed.ROJO)
-        self.ahora += 0.01
-        self.procesar_red()
+        self.assertEqual(actuador.leer(plazo=0.75), "ORDEN numero=3, estado=APAGADO")
         self.assertNotIn("sensor", self.servidor.roles)
-        self.assertEqual(self.servidor.control.estado, EstadoLed.APAGADO)
-        self.assertIsNone(self.servidor.control.distancia_filtrada)
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=7, estado=APAGADO"])
-        self.enviar(actuador, "APLICADO numero=7")
-        self.assertEqual(self.servidor.roles["actuador"].estado_confirmado, EstadoLed.APAGADO)
-        self.assertTrue(any(datos.get("motivo") == "SENSOR_INACTIVO"
-                            for _, datos in self.registro.eventos))
 
-    def test_desconexion_del_sensor_solicita_apagado(self):
+    def test_desconexion_sensor_apaga_leds(self):
         actuador = self.registrar("actuador")
         sensor = self.registrar("sensor")
-        for numero in range(1, 4):
-            self.lectura(sensor, numero, 5)
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=2, estado=ROJO"])
-        self.enviar(actuador, "APLICADO numero=2")
-        sensor.close()
-        self.procesar_red()
-        self.assertNotIn("sensor", self.servidor.roles)
-        self.assertIsNone(self.servidor.control.distancia_filtrada)
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=3, estado=APAGADO"])
-        self.enviar(actuador, "APLICADO numero=3")
-        self.assertEqual(self.servidor.roles["actuador"].estado_confirmado, EstadoLed.APAGADO)
+        self.tres_lecturas(sensor, 1, 5.2)
+        self.assertEqual(actuador.leer(), "ORDEN numero=2, estado=ROJO")
+        actuador.enviar("APLICADO numero=2")
+        self.assertTrue(self.esperar(lambda: self.servidor.roles['actuador'].numero_pendiente == 0))
+        sensor.cerrar()
+        self.assertEqual(actuador.leer(), "ORDEN numero=3, estado=APAGADO")
+        self.assertTrue(self.esperar(lambda: 'sensor' not in self.servidor.roles))
 
-    def test_sin_eco_demuestra_actividad(self):
+    def test_sin_eco_mantiene_actividad(self):
+        self.config.inactividad_sensor = 0.23
         sensor = self.registrar("sensor")
-        self.ahora += 4.0
+        time.sleep(0.13)
         self.lectura(sensor, 1, "SIN_ECO")
-        self.ahora += 4.0
-        self.procesar_red()
+        time.sleep(0.12)
         self.assertIn("sensor", self.servidor.roles)
 
-    def test_confirmacion_agotada_y_reconexion(self):
-        actuador = self.conectar()
-        self.enviar(actuador, "REGISTRO tipo=actuador, version=1")
-        self.leer(actuador)
-        self.ahora += 1.0
-        self.procesar_red()
-        self.assertNotIn("actuador", self.servidor.roles)
+    def test_confirmacion_agotada(self):
+        self.config.espera_confirmacion = 0.18
+        cliente = self.nuevo()
+        cliente.enviar("REGISTRO tipo=actuador, version=1")
+        self.assertEqual(cliente.leer(), "ACEPTADO REGISTRO")
+        self.assertEqual(cliente.leer(), "ORDEN numero=1, estado=APAGADO")
+        self.assertTrue(self.esperar(lambda: "actuador" not in self.servidor.roles, 0.5))
+        self.assertTrue(cliente.esperar_cierre())
         nuevo = self.registrar("actuador")
         self.assertIsNotNone(nuevo)
-        self.assertEqual(self.servidor.roles["actuador"].numero_orden, 1)
 
-    def test_confirmacion_incorrecta_se_rechaza(self):
-        actuador = self.conectar()
-        self.enviar(actuador, "REGISTRO tipo=actuador, version=1")
-        self.leer(actuador)
-        self.enviar(actuador, "APLICADO numero=999")
-        self.assertEqual(self.leer(actuador), ["ERROR codigo=CONFIRMACION"])
-        self.assertNotIn("actuador", self.servidor.roles)
+    def test_confirmacion_incorrecta_rechazada(self):
+        actuador = self.nuevo()
+        actuador.enviar("REGISTRO tipo=actuador, version=1")
+        self.assertEqual(actuador.leer(), "ACEPTADO REGISTRO")
+        actuador.leer()
+        actuador.enviar("APLICADO numero=999")
+        self.assertEqual(actuador.leer(), "ERROR codigo=CONFIRMACION")
+        self.assertTrue(self.esperar(lambda: "actuador" not in self.servidor.roles))
 
-    def test_estado_mas_reciente_sin_cola_de_ordenes(self):
+    def test_estado_final_no_se_encola_historico(self):
         actuador = self.registrar("actuador")
         sensor = self.registrar("sensor")
-        for numero in range(1, 4):
-            self.lectura(sensor, numero, 5)
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=2, estado=ROJO"])
-        for numero in range(4, 7):
-            self.lectura(sensor, numero, 25)
-        self.assertEqual(self.leer(actuador), [])
+        self.tres_lecturas(sensor, 1, 5)
+        self.assertEqual(actuador.leer(), "ORDEN numero=2, estado=ROJO")
+        self.tres_lecturas(sensor, 4, 25)
         self.lectura(sensor, 7, "SIN_ECO")
-        self.enviar(actuador, "APLICADO numero=2")
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=3, estado=APAGADO"])
+        actuador.enviar("APLICADO numero=2")
+        self.assertEqual(actuador.leer(), "ORDEN numero=3, estado=APAGADO")
 
-    def test_reemplazo_cierra_antiguo_y_preserva_nueva_sesion(self):
-        antiguo = self.registrar("sensor")
-        sesion_antigua = self.servidor.roles["sensor"]
+    def test_reemplazo_de_sensor(self):
+        anterior = self.registrar("sensor")
+        sesion = self.servidor.roles['sensor']
         nuevo = self.registrar("sensor")
-        self.assertTrue(sesion_antigua.cerrada)
-        self.assertIsNot(self.servidor.roles["sensor"], sesion_antigua)
-        self.assertEqual(antiguo.recv(1), b"")
+        self.assertTrue(self.esperar(lambda: sesion.cerrada))
+        self.assertTrue(anterior.esperar_cierre())
         self.lectura(nuevo, 1, 15.2)
 
-    def test_reconexion_del_actuador_recibe_estado_vigente(self):
+    def test_reconexion_actuador_conserva_color(self):
         sensor = self.registrar("sensor")
-        for numero in range(1, 4):
-            self.lectura(sensor, numero, 25)
-        actuador = self.registrar("actuador")
-        self.assertEqual(self.servidor.roles["actuador"].estado_confirmado, EstadoLed.VERDE)
-        actuador.close()
-        self.procesar_red()
-        self.registrar("actuador")
-        self.assertEqual(self.servidor.roles["actuador"].estado_confirmado, EstadoLed.VERDE)
+        self.tres_lecturas(sensor, 1, 25)
+        primer_actuador = self.nuevo()
+        primer_actuador.enviar("REGISTRO tipo=actuador, version=1")
+        self.assertEqual(primer_actuador.leer(), "ACEPTADO REGISTRO")
+        self.assertEqual(primer_actuador.leer(), "ORDEN numero=1, estado=VERDE")
+        primer_actuador.enviar("APLICADO numero=1")
+        self.assertTrue(self.esperar(lambda: self.servidor.roles['actuador'].numero_pendiente == 0))
+        primer_actuador.cerrar()
+        self.assertTrue(self.esperar(lambda: 'actuador' not in self.servidor.roles))
+        otro = self.nuevo()
+        otro.enviar("REGISTRO tipo=actuador, version=1")
+        self.assertEqual(otro.leer(), "ACEPTADO REGISTRO")
+        self.assertEqual(otro.leer(), "ORDEN numero=1, estado=VERDE")
 
-    def test_refresco_independiente_de_nuevas_lecturas(self):
+    def test_refresco_sin_nuevas_lecturas(self):
+        self.config.intervalo_refresco = 0.20
         actuador = self.registrar("actuador")
-        self.ahora += 1.0
-        self.procesar_red()
-        self.assertEqual(self.leer(actuador), ["ORDEN numero=2, estado=APAGADO"])
+        self.assertEqual(actuador.leer(plazo=0.5), "ORDEN numero=2, estado=APAGADO")
 
-    def test_roles_y_secuencia(self):
-        conexion = self.conectar()
-        self.enviar(conexion, "LECTURA numero=1, tiempo_ms=0, distancia_cm=15")
-        self.assertEqual(self.leer(conexion), ["ERROR codigo=SIN_REGISTRO"])
+    def test_secuencia_repetida_y_rol_equivocado(self):
+        sin_registro = self.nuevo()
+        sin_registro.enviar("LECTURA numero=1, tiempo_ms=0, distancia_cm=15")
+        self.assertEqual(sin_registro.leer(), "ERROR codigo=SIN_REGISTRO")
         sensor = self.registrar("sensor")
         self.lectura(sensor, 1, 15)
-        self.enviar(sensor, "LECTURA numero=1, tiempo_ms=0, distancia_cm=15")
-        self.assertEqual(self.leer(sensor), ["ERROR codigo=SECUENCIA"])
-        for rol, mensaje in (("sensor", "APLICADO numero=1"),
-                ("actuador", "LECTURA numero=1, tiempo_ms=0, distancia_cm=15")):
-            with self.subTest(rol=rol):
-                cliente = self.registrar(rol)
-                self.enviar(cliente, mensaje)
-                self.assertEqual(self.leer(cliente), ["ERROR codigo=ROL"])
-                self.assertNotIn(rol, self.servidor.roles)
-
-    def test_error_del_cliente_no_produce_otro_error(self):
+        sensor.enviar("LECTURA numero=1, tiempo_ms=100, distancia_cm=15")
+        self.assertEqual(sensor.leer(), "ERROR codigo=SECUENCIA")
         actuador = self.registrar("actuador")
-        self.enviar(actuador, "ERROR codigo=FORMATO")
-        self.assertEqual(self.leer(actuador), [])
-        self.assertNotIn("actuador", self.servidor.roles)
+        actuador.enviar("LECTURA numero=1, tiempo_ms=0, distancia_cm=15")
+        self.assertEqual(actuador.leer(), "ERROR codigo=ROL")
 
-    def test_registro_con_plazo_y_linea_excesiva(self):
-        conexion = self.conectar()
-        self.ahora += 3.0
-        self.procesar_red()
-        self.assertEqual(conexion.recv(1), b"")
-        conexion = self.conectar()
-        conexion.sendall(b"x" * 128)
-        self.assertEqual(self.leer(conexion), ["ERROR codigo=LONGITUD"])
+    def test_error_cliente_sin_respuesta_recursiva(self):
+        actuador = self.registrar("actuador")
+        actuador.enviar("ERROR codigo=FORMATO")
+        self.assertTrue(self.esperar(lambda: "actuador" not in self.servidor.roles))
+        self.assertTrue(actuador.esperar_cierre())
 
-    def test_fragmentos_tcp_reales(self):
-        sensor = self.conectar()
-        sensor.sendall(b"REGIS")
-        self.assertEqual(self.leer(sensor), [])
-        sensor.sendall(b"TRO tipo=sensor, version=1\r\n"
-                       b"LECTURA numero=1, tiempo_ms=0, distancia_cm=15.2\n"
-                       b"LECTURA numero=2, tiempo_ms=100, distancia_cm=15.2\n")
-        self.assertEqual(self.leer(sensor), ["ACEPTADO REGISTRO", "RECIBIDO numero=1", "RECIBIDO numero=2"])
+    def test_registro_tardio_y_longitud(self):
+        cliente = self.nuevo()
+        self.assertTrue(cliente.esperar_cierre(plazo=0.9))
+        cliente = self.nuevo()
+        cliente.conexion.sendall(b"x" * 128)
+        self.assertEqual(cliente.leer(), "ERROR codigo=LONGITUD")
+
+    def test_fragmentacion_y_concatenacion_tcp(self):
+        sensor = self.nuevo()
+        sensor.conexion.sendall(b"REGIS")
+        time.sleep(0.03)
+        sensor.conexion.sendall(b"TRO tipo=sensor, version=1\r\n"
+                                b"LECTURA numero=1, tiempo_ms=0, distancia_cm=15.20\n"
+                                b"LECTURA numero=2, tiempo_ms=100, distancia_cm=15.20\n")
+        self.assertEqual(sensor.leer(), "ACEPTADO REGISTRO")
+        self.assertEqual(sensor.leer(), "RECIBIDO numero=1")
+        self.assertEqual(sensor.leer(), "RECIBIDO numero=2")
+
+    def test_hilos_para_conexiones_simultaneas(self):
+        actuador = self.registrar("actuador")
+        sensor = self.registrar("sensor")
+        nombres = [h.name for h in self.servidor.hilos if h.is_alive()]
+        self.assertIn("tcp-aceptador", nombres)
+        self.assertIn("tcp-supervisor", nombres)
+        self.assertGreaterEqual(sum(x.startswith("tcp-cliente-") for x in nombres), 2)
+        completadas = []
+        def producir():
+            for numero in range(1, 4):
+                self.lectura(sensor, numero, 5)
+            completadas.append("sensor")
+        hilo = threading.Thread(target=producir)
+        hilo.start()
+        self.assertEqual(actuador.leer(), "ORDEN numero=2, estado=ROJO")
+        actuador.enviar("APLICADO numero=2")
+        hilo.join(timeout=1)
+        self.assertFalse(hilo.is_alive())
+        self.assertEqual(completadas, ["sensor"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,159 @@
+{
+  "fecha_utc": "2026-10-13T00:10:52.804871+00:00",
+  "tipo": "SOFTWARE_LOCAL_Y_COMPILACION",
+  "arquitectura": "HILOS",
+  "estado": "PARCIAL",
+  "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "resultados": [
+    {
+      "nombre": "pruebas_python",
+      "comando": [
+        "/opt/pyvenv/bin/python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "pruebas",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "fecha_utc": "2026-10-13T00:10:46.074888+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "compilacion_cpp_nativa",
+      "comando": [
+        "/usr/bin/g++",
+        "-std=c++11",
+        "-Wall",
+        "-Wextra",
+        "-I",
+        "pruebas/dobles",
+        "-I",
+        "firmware/include/sensor",
+        "-I",
+        "firmware/include/actuador",
+        "-I",
+        "comun",
+        "pruebas/nativo_compilador/test_componentes.cpp",
+        "firmware/src/sensor/SensorUltrasonico.cpp",
+        "firmware/src/actuador/IndicadorLeds.cpp",
+        "-o",
+        "/tmp/iot_tests_afsdvuh6/componentes"
+      ],
+      "fecha_utc": "2026-10-13T00:10:51.313743+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "pruebas_cpp_nativas",
+      "comando": [
+        "/tmp/iot_tests_afsdvuh6/componentes"
+      ],
+      "fecha_utc": "2026-10-13T00:10:52.026995+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "sintaxis_sensor",
+      "comando": [
+        "/usr/bin/g++",
+        "-std=c++11",
+        "-Wall",
+        "-Wextra",
+        "-I",
+        "pruebas/dobles",
+        "-I",
+        "firmware/include/sensor",
+        "-I",
+        "firmware/include/actuador",
+        "-I",
+        "comun",
+        "-fsyntax-only",
+        "firmware/src/sensor/SensorUltrasonico.cpp",
+        "firmware/src/sensor/main.cpp"
+      ],
+      "fecha_utc": "2026-10-13T00:10:52.029923+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "sintaxis_actuador",
+      "comando": [
+        "/usr/bin/g++",
+        "-std=c++11",
+        "-Wall",
+        "-Wextra",
+        "-I",
+        "pruebas/dobles",
+        "-I",
+        "firmware/include/sensor",
+        "-I",
+        "firmware/include/actuador",
+        "-I",
+        "comun",
+        "-fsyntax-only",
+        "firmware/src/actuador/IndicadorLeds.cpp",
+        "firmware/src/actuador/main.cpp"
+      ],
+      "fecha_utc": "2026-10-13T00:10:52.416951+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "pruebas_unity",
+      "estado": "NO_EJECUTADO",
+      "motivo": "PlatformIO no disponible en esta computadora"
+    },
+    {
+      "nombre": "compilacion_esp32_sensor",
+      "estado": "NO_EJECUTADO",
+      "motivo": "PlatformIO no disponible en esta computadora"
+    },
+    {
+      "nombre": "compilacion_esp32_actuador",
+      "estado": "NO_EJECUTADO",
+      "motivo": "PlatformIO no disponible en esta computadora"
+    },
+    {
+      "nombre": "pruebas_ncat",
+      "estado": "NO_EJECUTADO",
+      "motivo": "Ncat no disponible"
+    }
+  ],
+  "sha256_codigo": {
+    "comun/ClienteTcp.h": "2160ea660473403274e77c284cf58bdcbd4b8a7a8680a9df13053ef52adc0041",
+    "comun/ConfiguracionRedEjemplo.h": "acb5da9f527b87cff3bdc50e723fec8c9cf47ef228beef4b6cfdf0071cd4f80f",
+    "comun/ProtocoloAplicacion.h": "7f17b3a1dd97d81d64187140c8feccc3534ac80470e4563c0b01c33dd71da784",
+    "firmware/include/actuador/IndicadorLeds.h": "a1b0169a065d7bdb17565477584a6a65359940084c7dc08bfdeca3354f898bb6",
+    "firmware/include/sensor/SensorUltrasonico.h": "3e02d30f3d5b10d30c9fabd94aa6f1fc29509fd8e1df3de111b7185afc41e60a",
+    "firmware/src/actuador/IndicadorLeds.cpp": "4aa346a6f20b8faa6462504cbe6247e723f832a3998e410b09da7efb6a467271",
+    "firmware/src/actuador/main.cpp": "b58d3be58e2a13da7e8de65b968585021226d80d2b6a0bcd4be6ed57dfe51ae6",
+    "firmware/src/sensor/SensorUltrasonico.cpp": "830588ffaa9f0f75d0bc26942fbf1c92aa72ee1ce9b6bb26d5ddc373c36238f8",
+    "firmware/src/sensor/main.cpp": "a90ff681fa679a52a2d31e132f61613c750e29e284115e149ca381133a7268c3",
+    "platformio.ini": "63599267276d5ec3e2f2d1aac8fed331d24b636039be1f9755ed86b6b24a6f3b",
+    "pruebas/analizar_registro.py": "4a3a5999bee84d508660e477390ee05993acdf752faf01bf15abc1639287d5a3",
+    "pruebas/dobles/Arduino.h": "3b2e104e0637a70f257f6f233c97ad5c57173f2af02d7aa5e286e55754effcb1",
+    "pruebas/dobles/WiFi.h": "cdb99bb4f1d1056f0a288db61efd46dfd6d069e948e89995bfe582997d47b35b",
+    "pruebas/dobles/lwip/sockets.h": "e5516d8a5fc75e0e9656dd6023a36d47294568f0a1d1086af1aea935265709e8",
+    "pruebas/nativo_compilador/test_componentes.cpp": "8de794316babc1dc5660510d121c6db474eb696d719dbe36f68475fca6a659a0",
+    "pruebas/test_control.py": "252c853ff99b509a81855b017da513edade7bb21087f5be0dbd77c4871ca1f08",
+    "pruebas/test_integracion.py": "12f2063d6e6f1993d224ab0f0b9af1130c10619dad79747f6f097adb3ab57742",
+    "pruebas/test_protocolo.py": "4b1e61bbd592b47211c97eff94ef33eb8aa11dcdeb0f90e0a8944bbc43959c21",
+    "pruebas/unity/comprobar_cliente.h": "7b846a3d1a21f24117c725d4ba3150bb079208cc40348fded748e2b817193e11",
+    "pruebas/unity/test_actuador/test_main.cpp": "2a30581dcbd8b104b9b5b58db30a7cbdddd4765bd8817a4f5b5279dc6dd7e1fb",
+    "pruebas/unity/test_componentes/test_main.cpp": "4dfdbd376a4b17b5970bfc445d1dfc8743dec48eadac90395da945a8c9b7f313",
+    "pruebas/unity/test_sensor/test_main.cpp": "428b4d20806837c9b458d648920ac525870bffa2d1b9eef68248115919e965d6",
+    "pruebas/validar_software.py": "769f41830d86754d21c0bcb115962f00ca413c9fbf937d5f4a94acac7e295fc3",
+    "pruebas/verificar_ncat.py": "2296a1f48f453ed3387baa0098c86ccc197d7db161b00ea57cfc3dbbb59596de",
+    "servidor/__init__.py": "415385f388db77e8fedd6cc8db4fce269a292b4c72e931d2bb3cc24cbe364eca",
+    "servidor/__main__.py": "b356d0acafafadfdeed2b94fa355b7bdfafbf2488e251845a36212af7a2b4233",
+    "servidor/control.py": "f6578faa6bb608eb43f8d10166f2a0c180cad593dde40676782e0ed82641428b",
+    "servidor/protocolo.py": "72bc0893e8c73a946e6001c87e31aa0526b4038ac667095ce5d0e0fcc86ab06c",
+    "servidor/servidor.py": "6e561c89b89ab86739e30c540e17ff1600cb5c655396c5969906f26d10c63f5a"
+  },
+  "nota": "No acredita funcionamiento, exactitud o tiempos físicos de los ESP32."
+}

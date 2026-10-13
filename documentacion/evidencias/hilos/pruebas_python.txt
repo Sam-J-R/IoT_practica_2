@@ -1,0 +1,29 @@
+test_error_vacia_el_filtro_y_exige_tres_nuevas (test_control.PruebasControl.test_error_vacia_el_filtro_y_exige_tres_nuevas) ... ok
+test_espera_tres_lecturas_y_rechaza_un_pico (test_control.PruebasControl.test_espera_tres_lecturas_y_rechaza_un_pico) ... ok
+test_fronteras_y_datos_no_confiables (test_control.PruebasControl.test_fronteras_y_datos_no_confiables) ... ok
+test_colores_decimales_y_sin_eco (test_integracion.PruebasIntegracionHilos.test_colores_decimales_y_sin_eco) ... ok
+test_confirmacion_agotada (test_integracion.PruebasIntegracionHilos.test_confirmacion_agotada) ... ok
+test_confirmacion_incorrecta_rechazada (test_integracion.PruebasIntegracionHilos.test_confirmacion_incorrecta_rechazada) ... ok
+test_desconexion_sensor_apaga_leds (test_integracion.PruebasIntegracionHilos.test_desconexion_sensor_apaga_leds) ... ok
+test_error_cliente_sin_respuesta_recursiva (test_integracion.PruebasIntegracionHilos.test_error_cliente_sin_respuesta_recursiva) ... ok
+test_estado_final_no_se_encola_historico (test_integracion.PruebasIntegracionHilos.test_estado_final_no_se_encola_historico) ... ok
+test_fragmentacion_y_concatenacion_tcp (test_integracion.PruebasIntegracionHilos.test_fragmentacion_y_concatenacion_tcp) ... ok
+test_hilos_para_conexiones_simultaneas (test_integracion.PruebasIntegracionHilos.test_hilos_para_conexiones_simultaneas) ... ok
+test_inactividad_sensor_apaga_leds (test_integracion.PruebasIntegracionHilos.test_inactividad_sensor_apaga_leds) ... ok
+test_reconexion_actuador_conserva_color (test_integracion.PruebasIntegracionHilos.test_reconexion_actuador_conserva_color) ... ok
+test_reemplazo_de_sensor (test_integracion.PruebasIntegracionHilos.test_reemplazo_de_sensor) ... ok
+test_refresco_sin_nuevas_lecturas (test_integracion.PruebasIntegracionHilos.test_refresco_sin_nuevas_lecturas) ... ok
+test_registro_tardio_y_longitud (test_integracion.PruebasIntegracionHilos.test_registro_tardio_y_longitud) ... ok
+test_secuencia_repetida_y_rol_equivocado (test_integracion.PruebasIntegracionHilos.test_secuencia_repetida_y_rol_equivocado) ... ok
+test_sin_eco_mantiene_actividad (test_integracion.PruebasIntegracionHilos.test_sin_eco_mantiene_actividad) ... ok
+test_datos_rechazados (test_protocolo.PruebasProtocolo.test_datos_rechazados) ... ok
+test_distancias_decimales_y_sin_eco (test_protocolo.PruebasProtocolo.test_distancias_decimales_y_sin_eco) ... ok
+test_fragmentacion_concatenacion_y_crlf (test_protocolo.PruebasProtocolo.test_fragmentacion_concatenacion_y_crlf) ... ok
+test_limite_incluye_terminador (test_protocolo.PruebasProtocolo.test_limite_incluye_terminador) ... ok
+test_linea_valida_antes_de_error_se_procesa (test_protocolo.PruebasProtocolo.test_linea_valida_antes_de_error_se_procesa) ... ok
+test_rechaza_codificacion_y_controles (test_protocolo.PruebasProtocolo.test_rechaza_codificacion_y_controles) ... ok
+
+----------------------------------------------------------------------
+Ran 24 tests in 4.365s
+
+OK

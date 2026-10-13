@@ -91,20 +91,6 @@ def principal():
     servidor = ServidorTcp(ConfiguracionServidor(direccion="127.0.0.1", puerto=0),
                            RegistroPruebas(argumentos.registro))
     servidor.iniciar()
-    detener = threading.Event()
-    errores = []
-
-    def atender():
-        try:
-            while not detener.is_set():
-                servidor.ejecutar_paso(0.01)
-        except Exception as error:
-            errores.append(error)
-        finally:
-            servidor.cerrar()
-
-    hilo = threading.Thread(target=atender)
-    hilo.start()
     conexiones = []
 
     def conectar(rol=None, confirmar=False):
@@ -173,15 +159,12 @@ def principal():
         excesivo.esperar("ERROR codigo=LONGITUD")
         excesivo.esperar_cierre(1)
         print("APROBADO: secuencia repetida y línea excesiva rechazadas.")
-        if errores:
-            raise errores[0]
         print("Todas las verificaciones Ncat finalizaron; no son pruebas físicas de los ESP32.")
         return 0
     finally:
         for conexion in conexiones:
             conexion.cerrar()
-        detener.set()
-        hilo.join(timeout=3)
+        servidor.cerrar()
 
 
 if __name__ == "__main__":

@@ -21,11 +21,11 @@ std::string entradaSimulada;
 std::string salidaSimulada;
 
 #ifdef PRUEBA_SENSOR
-#include "../../sensor/src/SensorUltrasonico.cpp"
-#include "../../sensor/src/main.cpp"
+#include "../../firmware/src/sensor/SensorUltrasonico.cpp"
+#include "../../firmware/src/sensor/main.cpp"
 #else
-#include "../../actuador/src/IndicadorLeds.cpp"
-#include "../../actuador/src/main.cpp"
+#include "../../firmware/src/actuador/IndicadorLeds.cpp"
+#include "../../firmware/src/actuador/main.cpp"
 #endif
 
 // Antes de cada prueba se reinicia el estado: ninguna depende de la anterior.

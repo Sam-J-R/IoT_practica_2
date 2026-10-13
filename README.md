@@ -1,138 +1,78 @@
-# Práctica 2 — Sensor, servidor TCP y LEDs
+# Práctica 2 — IoT distribuido con TCP y servidor con hilos
 
-Un ESP32 mide la distancia y la envía por WiFi a la PC. El servidor Python decide el color. Otro ESP32 recibe la orden y enciende el LED. **Los rangos y los tiempos acordados se mantienen.**
+Dos placas **DOIT ESP32 DevKit v1** se conectan por Wi-Fi a un servidor Python en una laptop. El ESP32 sensor envía las distancias del HC-SR04 y el ESP32 actuador aplica los colores indicados por el servidor. El protocolo de aplicación propio utiliza mensajes en español.
 
-## 1. Dónde buscar cada cosa
+## Estructura del proyecto
 
-Empieza por los primeros tres archivos de esta tabla. No necesitas estudiar los simuladores de pruebas para entender el funcionamiento principal.
+```text
+IoT_practica_2/
+├── platformio.ini                 # ÚNICO proyecto PlatformIO: dos entornos
+├── firmware/
+│   ├── src/sensor/               # Programa del ESP32 sensor
+│   ├── src/actuador/             # Programa del ESP32 actuador
+│   ├── include/sensor/
+│   └── include/actuador/
+├── comun/                        # Cliente TCP y parser compartidos por ambas placas
+├── servidor/
+│   ├── servidor.py               # Hilos de clientes y supervisión
+│   ├── control.py                # Mediana y rangos
+│   ├── protocolo.py              # Gramática del protocolo
+│   └── __main__.py               # Entrada del programa
+├── pruebas/                       # Python, Unity y C++ nativo
+├── documentacion/
+│   ├── ARQUITECTURA_HILOS.md
+│   ├── VALIDACION.md
+│   └── evidencias/hilos/          # Salidas auténticas de los ensayos
+├── protocolo.md                  # Contrato oficial de mensajes
+└── PLAN.md                       # Decisiones y actividades restantes
+```
 
-| Si quieres entender o cambiar… | Abre… | Busca… |
-|---|---|---|
-| Los rangos y la elección del color | [servidor/control.py](servidor/control.py) | `clasificar()`; `procesar()` aplica la mediana; `EstadoLed(StrEnum)`. |
-| El funcionamiento del ESP32 sensor | [sensor/src/main.cpp](sensor/src/main.cpp) | `setup()` prepara; `loop()` recibe confirmaciones y envía lecturas. |
-| El funcionamiento del ESP32 actuador | [actuador/src/main.cpp](actuador/src/main.cpp) | `recibirMensaje()` aplica la orden; `loop()` revisa conexión y apagado. |
-| La medición ultrasónica | [sensor/include/SensorUltrasonico.h](sensor/include/SensorUltrasonico.h) y [.cpp](sensor/src/SensorUltrasonico.cpp) | Declaración y método `medir()`: disparo, eco y conversión a cm. |
-| El encendido de los LEDs | [actuador/include/IndicadorLeds.h](actuador/include/IndicadorLeds.h) y [.cpp](actuador/src/IndicadorLeds.cpp) | Declaración y método `aplicar()`: apagar todos y encender el solicitado. |
-| Cómo conectar ambos ESP32 | [comun/ConfiguracionRedEjemplo.h](comun/ConfiguracionRedEjemplo.h) | Nombre de red, clave, IP y puerto; copiar según el apartado 5. |
-| La conexión y reconexión WiFi/TCP | [comun/ClienteTcp.h](comun/ClienteTcp.h) | `actualizar()`, `enviar()` y `recibirMensaje()`. |
-| Cómo separar los campos de un mensaje en C++ | [comun/ProtocoloAplicacion.h](comun/ProtocoloAplicacion.h) | `interpretar()` y `obtener()`. |
-| El intercambio en la PC | [servidor/servidor.py](servidor/servidor.py) | `_procesar()` recibe mensajes; `_solicitar_estado()` envía órdenes. |
-| La validación de mensajes en Python | [servidor/protocolo.py](servidor/protocolo.py) | `interpretar()` revisa nombres, campos y valores. |
-| **Las pruebas Unity** | [pruebas/unity/test_componentes/test_main.cpp](pruebas/unity/test_componentes/test_main.cpp) | Funciones `probar…`, `TEST_ASSERT…` y la lista `RUN_TEST`. |
-| Las pruebas de rangos en Python | [pruebas/test_control.py](pruebas/test_control.py) | Distancias exactas y cercanas a 2, 10, 20 y 30 cm. |
-| Qué se ha comprobado y qué falta | [documentacion/VALIDACION.md](documentacion/VALIDACION.md) | Resultados, evidencias y pruebas físicas pendientes. |
+## Ejecutar el servidor Python
 
-## 2. Seguir una lectura de principio a fin
-
-Ejemplo: el objeto permanece a **15 cm**.
-
-1. El `loop()` del sensor llama a `sensor.medir(distanciaCm)` cada 100 ms.
-2. Forma un texto como `LECTURA numero=1, tiempo_ms=100, distancia_cm=15.00` y lo envía.
-3. El servidor, en `_procesar()`, reconoce LECTURA, procesa la distancia y responde `RECIBIDO numero=1`.
-4. `ControlDistancia.procesar()` espera tres lecturas válidas. Las ordena y toma la del medio: la mediana. Con 15, 15 y 15 resulta 15.
-5. `clasificar(15)` devuelve el valor `EstadoLed.AMARILLO` (`"AMARILLO"`). El servidor envía `ORDEN numero=2, estado=AMARILLO` cuando no hay otra orden pendiente.
-6. El actuador llama a `indicador.aplicar("AMARILLO")` y después envía `APLICADO numero=2`.
-
-Los números de los ejemplos son ilustrativos. El registro y la orden inicial de apagado se explican en el [protocolo](protocolo.md), con sus diagramas.
-
-| Distancia que clasifica la PC | Salida |
-|---|---|
-| 2 ≤ d ≤ 10 cm | Rojo fijo. |
-| 10 < d ≤ 20 cm | Amarillo fijo. |
-| 20 < d ≤ 30 cm | Verde fijo. |
-| Fuera de 2–30 cm o SIN_ECO | Todos apagados; se vacía el filtro. |
-
-### Relación con los códigos iniciales
-
-Se mantienen las clases del servidor. Para reconocer el ejemplo original, sigue esta correspondencia:
-
-| En el servidor inicial | En el servidor actual | Responsabilidad |
-|---|---|---|
-| `clientes` | `ServidorTcp.roles` | Encontrar la sesión del sensor o del actuador. `sesiones` conserva además las conexiones aún no registradas. |
-| `controlar_leds()` | `ControlDistancia.clasificar()` | Elegir el color; `procesar()` aplica primero la mediana. |
-| `actualizar_leds()` | `ServidorTcp._solicitar_estado()` | Solicitar el estado vigente y esperar su confirmación. |
-| `procesar_mensaje()` | `ServidorTcp._procesar()` | Procesar registro, lectura, confirmación o error según el rol. |
-| `enviar()` | `_enviar()` y `_transmitir()` | Guardar una línea y transmitir sus bytes sin detener a los demás clientes. |
-| `atender_cliente()` | `_recibir()` y `_cerrar_sesion()` | Reconstruir líneas TCP y limpiar al cliente desconectado. |
-| Bucle de `main()` | `principal()` y `ejecutar_paso()` | Aceptar conexiones, recibir, transmitir y revisar plazos. |
-
-El servidor original usaba un hilo por cliente y un bloqueo compartido. El actual usa un único bucle con `select`: atiende sockets disponibles y revisa temporizadores. Ambas arquitecturas son válidas; la práctica no exige `select`. Se conserva la elegida para que roles, filtro y órdenes se modifiquen en un solo lugar.
-
-En los ESP32 también se conservó la base: HC-SR04 en GPIO 14/27, LEDs en 33/25/26, WiFi, sockets y lectura de líneas. `ClienteTcp` reúne conexión, registro y reconexión; `SensorUltrasonico.medir()` reúne la adquisición; `IndicadorLeds.aplicar()` actualiza las salidas. Los dos `main.cpp` coordinan esos pasos y usan los mensajes definidos en el protocolo.
-
-Los borradores tenían diferencias reales: el sensor enviaba decimales y Python usaba `int`; el actuador esperaba `OK REGISTER` y el servidor respondía `OK`; no enviaba confirmación de actuación; se preveía parpadeo, pero el actuador solo reconocía `on`. La frecuencia del sensor era de una lectura/s. El protocolo actual unifica esos contratos y conserva las decisiones posteriores del plan.
-
-## 3. Los tipos y las clases
-
-En el C++ propio se utilizan `int` para pines y cantidades, `float` para centímetros, `bool` para respuestas sí/no y `unsigned long` para tiempos y números de mensajes. `String` representa texto y evita manipular matrices de caracteres. No es un tipo primitivo: es la clase habitual de texto de Arduino.
-
-`String(numero)` convierte un número en texto; `String(distanciaCm, 2)` lo escribe con dos decimales. `indexOf()` busca una posición, `substring()` extrae una parte y `+` une textos. `millis()` devuelve milisegundos; `ahora - ultimoTiempo` permite comprobar un plazo sin detener el programa con `delay()`.
-
-Una clase agrupa datos y acciones relacionados. Las clases de hardware (`SensorUltrasonico` e `IndicadorLeds`) separan su declaración en `.h` de su implementación en `.cpp`, siguiendo las buenas prácticas de programación en C++, e incluyen `comun/` de forma modular mediante banderas de compilación (`-I ../comun`).
-
-El servidor requiere **Python 3.11 o posterior**. Usa `StrEnum` para nombrar los colores y anotaciones de tipo para ayudar a leer el código. Las anotaciones no verifican valores durante la ejecución: esa validación se realiza explícitamente en el protocolo.
-
-## 4. Dónde están y cómo ejecutar las pruebas Unity
-
-Desde **la raíz del repositorio**, ejecutar:
+Requiere Python **3.11 o posterior**. Desde la raíz del repositorio:
 
 ```powershell
+python -m servidor --direccion 0.0.0.0 --puerto 5000
+```
+
+El servidor crea un hilo para aceptar conexiones, uno para supervisar temporizadores y un hilo lector por conexión TCP. La clase `ServidorTcp` utiliza un `threading.RLock` para que todas las modificaciones del estado compartido sean consistentes. No se utiliza `select`.
+
+## Configurar las dos placas
+
+Copia `comun/ConfiguracionRedEjemplo.h` a `comun/ConfiguracionRed.h` e introduce el nombre/contraseña de la Wi-Fi y **la IPv4 actual de la laptop** (consultar con `ipconfig`). Este archivo está excluido de Git para no publicar claves. Las tres máquinas deben estar en la misma red y el firewall debe permitir el puerto TCP 5000.
+
+Desde **la raíz** del repositorio:
+
+```powershell
+pio run -e esp32_sensor
+pio run -e esp32_actuador
+```
+
+Para cargar el firmware a la placa correspondiente, después de verificar el puerto COM:
+
+```powershell
+pio run -e esp32_sensor -t upload --upload-port COM3
+pio run -e esp32_actuador -t upload --upload-port COM4
+```
+
+Sustituye `COM3` y `COM4` por los puertos reales de cada placa. Cada entorno contiene solo el firmware que corresponde a esa placa.
+
+## Hardware y control
+
+- **Sensor:** HC-SR04 con `Trigger` en GPIO 14, `Echo` en GPIO 27 y divisor de nivel en Echo de 1 kΩ (superior) + 2 kΩ (inferior); alimentación y masa común. La salida teórica es ~3,33 V con entrada nominal de 5 V: está ligeramente por encima de 3,3 V, por lo que debe comprobarse la compatibilidad eléctrica/tolerancias. La versión de 1 kΩ + 1,8 kΩ tendría más margen.
+- **Actuador:** LED rojo GPIO 33, amarillo GPIO 25, verde GPIO 26; una resistencia de 220 Ω en serie con cada LED.
+- **Control:** rojo para `2 ≤ d ≤ 10 cm`, amarillo para `10 < d ≤ 20 cm`, verde para `20 < d ≤ 30 cm`. Fuera de `[2,30]` o `SIN_ECO`, todos apagados. La decisión utiliza mediana de las tres últimas lecturas válidas.
+
+El sensor envía `LECTURA`, la PC responde `RECIBIDO`, el servidor envía `ORDEN` y el actuador confirma con `APLICADO`. Primero los clientes envían `REGISTRO`. Ver [protocolo.md](protocolo.md) para la gramática completa.
+
+## Pruebas reproducibles
+
+```powershell
+python -B -m unittest discover -s pruebas -p "test_*.py" -v
+python -B pruebas/validar_software.py
 pio test -e native
 ```
 
-`native` significa ejecutar en la **PC**, sin placas conectadas. La configuración está en el `platformio.ini` de la raíz; **no crea un tercer programa para un ESP32**. Los dos proyectos de las placas siguen en `sensor/` y `actuador/`.
+El validador reúne salidas y huellas SHA-256 en [documentacion/evidencias/hilos/](documentacion/evidencias/hilos/). Si faltan `g++`, PlatformIO o Ncat, deja constancia **NO EJECUTADO** sin simular aprobaciones. La ejecución de Python y C++ en PC no sustituye las pruebas físicas de exactitud, estabilidad o tiempo real de actuación.
 
-| Carpeta Unity | Qué comprueba |
-|---|---|
-| [test_componentes](pruebas/unity/test_componentes/test_main.cpp) | Ocho pruebas de mensajes, números, medición simulada y exclusión de LEDs. Es el punto de entrada más sencillo. |
-| [test_sensor](pruebas/unity/test_sensor/test_main.cpp) | Ejecuta el programa real del sensor con red y reloj simulados: confirmaciones, muestreo y reconexión. |
-| [test_actuador](pruebas/unity/test_actuador/test_main.cpp) | Ejecuta el programa real del actuador con órdenes simuladas: actuación, confirmación, apagado y reconexión. |
-
-Las dos últimas usan [comprobar_cliente.h](pruebas/unity/comprobar_cliente.h): **ocho pruebas cortas por programa**, cada una con su estado reiniciado. Hay 24 pruebas Unity y 23 de Python. Primero se dividieron los ensayos largos para facilitar la lectura; después se fusionaron dos comprobaciones pequeñas de catálogo e interpretación sin retirar sus verificaciones. `pruebas/dobles/` sustituye Arduino y WiFi solamente al probar en PC; las placas usan sus bibliotecas reales. La [explicación de las pruebas](documentacion/VALIDACION.md#7-qué-verifica-cada-prueba) indica qué se comprueba y por qué.
-
-**Los rangos se prueban en Python**, porque ahora la decisión está en el servidor. Unity comprueba el C++ de las placas; no se duplicó la clasificación en C++.
-
-```powershell
-python -B -m unittest discover -s pruebas -v
-python -B pruebas/verificar_ncat.py
-```
-
-Para ejecutar todas las comprobaciones y guardar sus salidas:
-
-```powershell
-python -B pruebas/validar_software.py
-```
-
-El validador busca PlatformIO en el PATH y en su instalación habitual de Windows. También acepta `--platformio RUTA`. Devuelve **0** si las cinco comprobaciones aprueban, **1** si alguna falla y **2** si faltan herramientas. Guarda el commit de referencia y las huellas del código probado en el resumen; ese commit puede tener cambios locales aún sin confirmar.
-
-Se utiliza Ncat 7.991 instalado localmente en `.herramientas/ncat/`. El guion lo encuentra allí o en el PATH; también acepta `--ncat RUTA`. Los binarios no se incluyen en Git. [Origen y firma de instalación](documentacion/evidencias/software/instalacion_ncat.json).
-
-## 5. Configurar y ejecutar el prototipo
-
-Crear la configuración privada compartida:
-
-```powershell
-Copy-Item comun/ConfiguracionRedEjemplo.h comun/ConfiguracionRed.h
-```
-
-Completar nombre de red, contraseña e IPv4 de la PC. `ConfiguracionRed.h` está excluido de Git. Sin él se usan datos de ejemplo. Para más mensajes por el monitor serie, poner `depuracionActiva = true` y volver a cargar ambos ESP32.
-
-```powershell
-python -m servidor --puerto 5000 --registro registros/ejecucion.jsonl
-pio run --project-dir sensor
-pio run --project-dir actuador
-pio device list
-```
-
-Cargar cada proyecto con `pio run --project-dir sensor --target upload --upload-port COM5`, usando el proyecto y puerto correctos. Abrir el monitor con `pio device monitor --port COM5 --baud 115200`. COM5 es solo un ejemplo; cerrar el monitor antes de cargar.
-
-| Circuito | Conexiones |
-|---|---|
-| Sensor | Disparo GPIO 14; ECHO → 1 kΩ → nodo GPIO 27 → 2 kΩ → GND. VCC a 5 V y tierra común con su placa. |
-| Actuador | GPIO 33 rojo, 25 amarillo, 26 verde; resistencia de 220 Ω por LED y cátodos a GND. |
-
-Usar WiFi de 2,4 GHz que permita comunicación entre los equipos. No conectar ECHO de 5 V directamente al GPIO. Las placas se alimentan por USB; la comunicación entre ellas pasa por la PC.
-
-Se mantienen: sensor inactivo 5 s; confirmación del actuador 1 s, incluyendo la cola de salida de la PC; apagado local sin órdenes 3 s; reconexión cada 2 s; registro 3 s y refresco de órdenes 1 s. En el sensor, la espera de confirmación empieza al aparecer lecturas pendientes y se renueva con cada RECIBIDO válido. La única llamada de envío TCP de bajo nivel está encapsulada en `ClienteTcp::enviarPendientes()` para que una red bloqueada no detenga esos plazos.
-
-El [protocolo](protocolo.md), el [plan](PLAN.md) y la [validación](documentacion/VALIDACION.md) completan la documentación. Las mediciones físicas y el informe del equipo siguen pendientes.
+Documentos complementarios: [arquitectura](documentacion/ARQUITECTURA_HILOS.md), [validación](documentacion/VALIDACION.md), [plan](PLAN.md).

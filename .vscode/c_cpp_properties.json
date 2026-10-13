@@ -1,0 +1,44 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "C:/IoT/IoT_practica_2/src",
+                "C:/IoT/IoT_practica_2/pruebas/dobles",
+                "C:/IoT/IoT_practica_2/sensor/include",
+                "C:/IoT/IoT_practica_2/actuador/include",
+                "C:/IoT/IoT_practica_2/comun",
+                "C:/IoT/IoT_practica_2/.pio/libdeps/native/Unity/src",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "C:/IoT/IoT_practica_2/src",
+                    "C:/IoT/IoT_practica_2/pruebas/dobles",
+                    "C:/IoT/IoT_practica_2/sensor/include",
+                    "C:/IoT/IoT_practica_2/actuador/include",
+                    "C:/IoT/IoT_practica_2/comun",
+                    "C:/IoT/IoT_practica_2/.pio/libdeps/native/Unity/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=60200",
+                "UNITY_INCLUDE_CONFIG_H",
+                ""
+            ],
+            "cppStandard": "c++11",
+            "compilerPath": "gcc",
+            "compilerArgs": [
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}

@@ -3,8 +3,8 @@
 #include "ProtocoloAplicacion.h"
 #include "SensorUltrasonico.h"
 #include "IndicadorLeds.h"
-#include "../../../sensor/src/SensorUltrasonico.cpp"
-#include "../../../actuador/src/IndicadorLeds.cpp"
+#include "../../../firmware/src/sensor/SensorUltrasonico.cpp"
+#include "../../../firmware/src/actuador/IndicadorLeds.cpp"
 
 int nivelesSimulados[40] = {};
 int escriturasSimuladas[128][2] = {};
