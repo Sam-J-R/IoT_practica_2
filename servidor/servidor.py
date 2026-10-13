@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
+from queue import Empty, Full, Queue
 import socket
 import threading
 import time
@@ -63,6 +64,9 @@ class SesionCliente:
         self.numero_lectura = 0
         self.numero_orden = 0
         self.numero_pendiente = 0
+        self.ordenes_interrumpidas: set[int] = set()
+        self.salida: Queue[tuple[bytes, str, bool]] = Queue(maxsize=32)
+        self.terminando = False
         self.estado_pendiente: EstadoLed = EstadoLed.APAGADO
         self.inicio_orden = 0.0
         self.estado_confirmado: Optional[EstadoLed] = None
@@ -73,8 +77,8 @@ class SesionCliente:
 class ServidorTcp:
     """Coordina sensor y actuador usando un hilo lector por cliente.
 
-    La lectura de sockets se realiza fuera del bloqueo; solo la modificación
-    del estado compartido y los envíos breves se hacen bajo el RLock.
+    Las lecturas y escrituras TCP ocurren fuera del bloqueo global.
+    Un hilo escritor por cliente mantiene el orden de sus mensajes.
     """
 
     def __init__(self, configuracion: Optional[ConfiguracionServidor] = None,
@@ -146,10 +150,11 @@ class ServidorTcp:
                 self.sesiones[conexion] = sesion
                 self.registro.registrar("CONEXION", sesion=sesion.identificador,
                                         direccion=str(direccion))
+                self._iniciar_hilo(self._escribir_cliente, f"tcp-escritor-{sesion.identificador}", sesion)
                 self._iniciar_hilo(self._leer_cliente, f"tcp-cliente-{sesion.identificador}", sesion)
 
     def _leer_cliente(self, sesion: SesionCliente) -> None:
-        while not self.detener.is_set() and not sesion.cerrada:
+        while not self.detener.is_set() and not sesion.cerrada and not sesion.terminando:
             try:
                 datos = sesion.conexion.recv(1024)
             except socket.timeout:
@@ -174,23 +179,50 @@ class ServidorTcp:
                         self._rechazar(sesion, error.codigo)
                 break
 
-    def _enviar(self, sesion: SesionCliente, mensaje: str) -> bool:
-        """El bloqueo del servidor serializa los envíos y preserva su orden."""
-        if sesion.cerrada:
-            return False
-        try:
-            sesion.conexion.sendall(ProtocoloAplicacion.codificar(mensaje))
+    def _escribir_cliente(self, sesion: SesionCliente) -> None:
+        """Único escritor de la sesión: sendall nunca retiene el RLock global."""
+        while not self.detener.is_set() and not sesion.cerrada:
+            try:
+                datos, mensaje, cerrar_despues = sesion.salida.get(timeout=0.1)
+            except Empty:
+                continue
+            if sesion.cerrada:
+                return
+            try:
+                sesion.conexion.sendall(datos)
+            except (OSError, socket.timeout):
+                with self.bloqueo:
+                    self._cerrar_sesion(sesion, "FALLO_ENVIO")
+                return
             self.registro.registrar("MENSAJE_ENVIADO", sesion=sesion.identificador,
                                     mensaje=mensaje)
-            return True
-        except (OSError, socket.timeout):
-            self._cerrar_sesion(sesion, "FALLO_ENVIO")
+            if cerrar_despues:
+                with self.bloqueo:
+                    self._cerrar_sesion(sesion, "ERROR_PROTOCOLO")
+                return
+
+    def _enviar(self, sesion: SesionCliente, mensaje: str,
+                cerrar_despues: bool = False) -> bool:
+        """Encola sin esperar a la red; mantiene el orden de cada sesión."""
+        if sesion.cerrada or sesion.terminando:
             return False
+        datos = ProtocoloAplicacion.codificar(mensaje)
+        try:
+            sesion.salida.put_nowait((datos, mensaje, cerrar_despues))
+        except Full:
+            self._cerrar_sesion(sesion, "COLA_ENVIO_LLENA")
+            return False
+        self.registro.registrar("MENSAJE_ENCOLADO", sesion=sesion.identificador,
+                                mensaje=mensaje)
+        if cerrar_despues:
+            sesion.terminando = True
+        return True
 
     def _rechazar(self, sesion: SesionCliente, codigo: str) -> None:
         self.registro.registrar("ERROR_PROTOCOLO", sesion=sesion.identificador, codigo=codigo)
-        self._enviar(sesion, f"ERROR codigo={codigo}")
-        self._cerrar_sesion(sesion, "ERROR_PROTOCOLO")
+        # Dejar que el escritor transmita ERROR antes de cerrar el socket.
+        if not self._enviar(sesion, f"ERROR codigo={codigo}", cerrar_despues=True):
+            self._cerrar_sesion(sesion, "ERROR_PROTOCOLO")
 
     def _cerrar_sesion(self, sesion: SesionCliente, motivo: str) -> None:
         if sesion.cerrada:
@@ -212,9 +244,20 @@ class ServidorTcp:
 
     def _solicitar_estado(self, forzar: bool = False) -> None:
         actuador = self.roles.get("actuador")
-        if actuador is None or actuador.cerrada or actuador.numero_pendiente:
+        if actuador is None or actuador.cerrada:
             return
-        if not forzar and actuador.estado_confirmado == self.control.estado:
+        interrumpida = False
+        if actuador.numero_pendiente:
+            # APAGADO tiene prioridad incluso si falta el APLICADO del color anterior.
+            # Las confirmaciones viejas se aceptarán sin alterar la orden vigente.
+            if not (self.control.estado == EstadoLed.APAGADO and
+                    actuador.estado_pendiente != EstadoLed.APAGADO):
+                return
+            actuador.ordenes_interrumpidas.add(actuador.numero_pendiente)
+            interrumpida = True
+            self.registro.registrar("ORDEN_INTERRUMPIDA", sesion=actuador.identificador,
+                                    numero=actuador.numero_pendiente)
+        if not forzar and not interrumpida and actuador.estado_confirmado == self.control.estado:
             return
         actuador.numero_orden += 1
         actuador.numero_pendiente = actuador.numero_orden
@@ -263,6 +306,11 @@ class ServidorTcp:
                 filtrada_cm=self.control.distancia_filtrada, estado=str(estado))
             self._solicitar_estado()
         elif mensaje.comando == "APLICADO" and sesion.rol == "actuador":
+            if argumentos["numero"] in sesion.ordenes_interrumpidas:
+                sesion.ordenes_interrumpidas.remove(argumentos["numero"])
+                self.registro.registrar("APLICADO_ANTERIOR", sesion=sesion.identificador,
+                                        numero=argumentos["numero"])
+                return
             if (sesion.numero_pendiente == 0 or
                     argumentos["numero"] != sesion.numero_pendiente):
                 raise ErrorProtocolo("CONFIRMACION")
