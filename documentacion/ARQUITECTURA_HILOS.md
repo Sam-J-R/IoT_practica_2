@@ -23,20 +23,33 @@ flowchart TD
     INI["ServidorTcp.iniciar()"] --> AC["Hilo tcp-aceptador<br/>accept()"]
     AC --> C1["Hilo tcp-cliente-1<br/>recv / interpretar"]
     AC --> C2["Hilo tcp-cliente-2<br/>recv / interpretar"]
+    AC --> W1["Hilo tcp-escritor-1<br/>cola / sendall"]
+    AC --> W2["Hilo tcp-escritor-2<br/>cola / sendall"]
     INI --> SUP["Hilo tcp-supervisor<br/>temporizadores cada ~25 ms"]
     C1 --> LOCK["RLock<br/>roles, filtro, sesiones, órdenes"]
     C2 --> LOCK
     SUP --> LOCK
     LOCK --> EST["ControlDistancia<br/>mediana y estado"]
+    LOCK --> Q["Colas de salida por cliente"]
+    Q --> W1
+    Q --> W2
+    LOCK --> R["Cola de registros<br/>máximo 1024 eventos"]
+    R --> LOG["Hilo registro-eventos<br/>consola / JSONL"]
 ```
 
-- `tcp-aceptador` acepta conexiones y crea un hilo lector por conexión.
+- `tcp-aceptador` acepta conexiones y crea un lector y un escritor por conexión.
 - `tcp-cliente-N` reconstruye mensajes TCP, valida comandos y actualiza la sesión.
-- `tcp-supervisor` verifica el plazo de registro, la inactividad del sensor, las confirmaciones pendientes y el refresco periódico de órdenes.
-- El `threading.RLock` evita cambios simultáneos de roles, secuencias, estado y órdenes. Solo la llamada `recv()` espera fuera del bloqueo. Los envíos son pequeños (≤ 128 bytes) y están limitados por un timeout de 250 ms; durante ese envío el bloqueo puede retrasar a otros clientes, una limitación aceptada para **dos** dispositivos. No se garantiza ejecución paralela de cálculos; los hilos permiten concurrencia de I/O.
-- El cierre de sensor invalida el filtro y solicita `APAGADO`. La confirmación `APLICADO` demuestra que el firmware llamó a `digitalWrite`, no prueba por sí misma el estado eléctrico del LED.
+- `tcp-escritor-N` consume una cola de hasta 32 mensajes y envía sin retener el RLock. Cada operación de socket tiene timeout de 250 ms.
+- `tcp-supervisor` verifica registro, inactividad, confirmaciones, refresco y el plazo total de cierre por error de 0,5 s. Comprueba los plazos aproximadamente cada 25 ms, sujeto a la planificación del sistema operativo.
+- El `threading.RLock` protege roles, secuencias, estado y órdenes. `recv()`, `sendall()` y la escritura de registros no esperan dentro de ese bloqueo.
+- El rechazo o cierre del sensor retira su rol, invalida el filtro y solicita `APAGADO` inmediatamente. El intento posterior de entregar ERROR no retrasa esa invalidación.
+- `registro-eventos` escribe consola y JSONL desde una cola de hasta 1024 eventos. Si se llena, descarta eventos nuevos y contabiliza la pérdida; al avanzar el consumidor emite `REGISTROS_DESCARTADOS`. Un destino que falla se deshabilita, el fallo queda en `RegistroPruebas.error` y se avisa por consola si esta funciona. El control TCP continúa, pero esos registros no constituyen evidencia completa.
+- El cierre espera hasta 0,6 s al consumidor de registros. Si un destino sigue bloqueado, queda indicado en `error`; el hilo daemon podrá finalizar si se desbloquea, pero no impide salir del programa ni garantiza guardar toda la cola.
+- Cada hilo TCP se retira de la lista al terminar. Una excepción inesperada en un hilo TCP detiene el servicio, cierra las conexiones y hace que la entrada principal termine con error, en lugar de continuar sin supervisión.
+- Solo se conserva el número del color interrumpido mientras APAGADO espera confirmación. Confirmar APAGADO o cerrar la sesión elimina ese número. Confirmar el color no confirma APAGADO ni renueva su plazo.
+- `APLICADO` demuestra que el firmware llamó a `digitalWrite`, no prueba por sí mismo el estado eléctrico del LED.
 
-Esta arquitectura sustituye el bucle `select` anterior. Para dos conexiones evita crear un despachador complejo de eventos y colas de escritura; el coste es la sincronización explícita mediante un bloqueo.
+Esta arquitectura sustituye el bucle `select` anterior. Combina hilos de I/O con colas acotadas y sincronización explícita del estado compartido.
 
 ## 4. Diagrama de clases y responsabilidades
 
@@ -47,6 +60,7 @@ classDiagram
         +cerrar()
         -_aceptar()
         -_leer_cliente(sesion)
+        -_escribir_cliente(sesion)
         -_supervisar()
         -_procesar(sesion,linea)
         -_solicitar_estado()
@@ -55,12 +69,19 @@ classDiagram
         +rol
         +numero_lectura
         +numero_pendiente
+        +numero_interrumpido
         +estado_confirmado
     }
     class ControlDistancia {
         +clasificar(distancia)
         +procesar(distancia)
         +invalidar()
+    }
+    class RegistroPruebas {
+        +registrar(evento)
+        +cerrar()
+        +error
+        +descartados
     }
     class ProtocoloAplicacion {
         +interpretar(linea)
@@ -81,6 +102,7 @@ classDiagram
     ServidorTcp --> SesionCliente
     ServidorTcp --> ControlDistancia
     ServidorTcp --> ProtocoloAplicacion
+    ServidorTcp --> RegistroPruebas
     ClienteTcp --> ProtocoloAplicacion
 ```
 

@@ -1,0 +1,95 @@
+{
+  "fecha_utc": "2026-10-13T17:08:09.606987+00:00",
+  "tipo": "SOFTWARE_ESENCIAL_Y_COMPILACION",
+  "estado": "APROBADO",
+  "python": "3.11.7 (tags/v3.11.7:fa7a6f2, Dec  4 2023, 19:24:49) [MSC v.1937 64 bit (AMD64)]",
+  "resultados": [
+    {
+      "nombre": "pruebas_python",
+      "comando": [
+        "C:\\Users\\Maria\\.platformio\\penv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "pruebas",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "fecha_utc": "2026-10-13T17:07:40.683817+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "pruebas_unity",
+      "comando": [
+        "C:/Users/Maria/.platformio/penv/Scripts/pio.exe",
+        "test",
+        "-e",
+        "native"
+      ],
+      "fecha_utc": "2026-10-13T17:07:47.700157+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "compilacion_esp32_sensor",
+      "comando": [
+        "C:/Users/Maria/.platformio/penv/Scripts/pio.exe",
+        "run",
+        "-e",
+        "esp32_sensor"
+      ],
+      "fecha_utc": "2026-10-13T17:07:58.809231+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    },
+    {
+      "nombre": "compilacion_esp32_actuador",
+      "comando": [
+        "C:/Users/Maria/.platformio/penv/Scripts/pio.exe",
+        "run",
+        "-e",
+        "esp32_actuador"
+      ],
+      "fecha_utc": "2026-10-13T17:08:04.461474+00:00",
+      "codigo_salida": 0,
+      "estado": "APROBADO"
+    }
+  ],
+  "sha256_codigo": {
+    "comun/ClienteTcp.h": "2160ea660473403274e77c284cf58bdcbd4b8a7a8680a9df13053ef52adc0041",
+    "comun/ConfiguracionRedEjemplo.h": "79a33cecf1a31588918e75dfaad66950585176d45f584de2ea68d5874c1b3101",
+    "comun/ProtocoloAplicacion.h": "7f17b3a1dd97d81d64187140c8feccc3534ac80470e4563c0b01c33dd71da784",
+    "firmware/include/actuador/IndicadorLeds.h": "a1b0169a065d7bdb17565477584a6a65359940084c7dc08bfdeca3354f898bb6",
+    "firmware/include/sensor/SensorUltrasonico.h": "3e02d30f3d5b10d30c9fabd94aa6f1fc29509fd8e1df3de111b7185afc41e60a",
+    "firmware/src/actuador/IndicadorLeds.cpp": "4aa346a6f20b8faa6462504cbe6247e723f832a3998e410b09da7efb6a467271",
+    "firmware/src/actuador/main.cpp": "b58d3be58e2a13da7e8de65b968585021226d80d2b6a0bcd4be6ed57dfe51ae6",
+    "firmware/src/sensor/main.cpp": "a90ff681fa679a52a2d31e132f61613c750e29e284115e149ca381133a7268c3",
+    "firmware/src/sensor/SensorUltrasonico.cpp": "830588ffaa9f0f75d0bc26942fbf1c92aa72ee1ce9b6bb26d5ddc373c36238f8",
+    "platformio.ini": "a4b89694abe3e08af00295e775d02f640be03ba8865ebcae884cf195cdfaeff8",
+    "pruebas/analizar_registro.py": "2741d71d8ad2279b60efcae698ee2e14bdcf85b86ca649bc1c8ff8ae2beb0bad",
+    "pruebas/dobles/Arduino.h": "3b2e104e0637a70f257f6f233c97ad5c57173f2af02d7aa5e286e55754effcb1",
+    "pruebas/dobles/lwip/sockets.h": "e5516d8a5fc75e0e9656dd6023a36d47294568f0a1d1086af1aea935265709e8",
+    "pruebas/dobles/WiFi.h": "cdb99bb4f1d1056f0a288db61efd46dfd6d069e948e89995bfe582997d47b35b",
+    "pruebas/test_analizar_registro.py": "28eba914d3251ab388085dbf03f74be4699a96b876cd7844288eec3eebabd667",
+    "pruebas/test_control.py": "252c853ff99b509a81855b017da513edade7bb21087f5be0dbd77c4871ca1f08",
+    "pruebas/test_integracion.py": "7fe18516cb52c0e6b0e6902f34db4679aae8105cad4e626fdf9f9d5f35881163",
+    "pruebas/test_protocolo.py": "54e742cf489d0303b453c534b3eae32ce968da7a0a8c9498914540cad88acf80",
+    "pruebas/test_registro.py": "1b88dbe80154e4987ab7f44ad97d6407856cca9c3cea96ebb67f3b3842255dc3",
+    "pruebas/test_robustez_servidor.py": "86fddca9f71e311912de1df502f75e9715a0e51e76d2101ec09ca7eef0b7f6eb",
+    "pruebas/unity/comprobar_cliente.h": "09fe77bfcc559d489a39b6232c6d37b48fa3847e53ce9386ad423f919720a70f",
+    "pruebas/unity/test_actuador/test_main.cpp": "2a30581dcbd8b104b9b5b58db30a7cbdddd4765bd8817a4f5b5279dc6dd7e1fb",
+    "pruebas/unity/test_componentes/test_main.cpp": "41dad777ace19dee2619a0708efa3f2a480343066f9ca4807e534e828f7f37c4",
+    "pruebas/unity/test_sensor/test_main.cpp": "428b4d20806837c9b458d648920ac525870bffa2d1b9eef68248115919e965d6",
+    "pruebas/validar_software.py": "eaa0a4628470516abe7a6339b9def0fedc88b66a3e3ed813a0242f6dcc403019",
+    "servidor/__main__.py": "41580602e3caa3cd896f2fc45491237925834ab1726831a7de09018e7b0065c4",
+    "servidor/control.py": "5852644514d59e3de530f6d047b887c50773bbff55b87d302dfada59788aefcd",
+    "servidor/protocolo.py": "c22cf5aa2baae35d83d30c758fd0f21318f9cc2a8b97897af58fd24fd81f0720",
+    "servidor/registro.py": "9354410d4c57ea26720983e26f27b1f8299d9c69f55e3a4e186fa818225bfb87",
+    "servidor/servidor.py": "c13ff07e3d783e2b58d2cba1200d080d2b61bea0135b273c74050715229558f4"
+  },
+  "nota": "No acredita funcionamiento, exactitud o tiempos físicos de los ESP32. La configuración privada de red se excluye de las huellas."
+}

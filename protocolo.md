@@ -117,7 +117,9 @@ Solicita un estado completo de los LEDs: se apagan los tres y se activa el color
 ORDEN numero=81, estado=AMARILLO
 ```
 
-El servidor envía órdenes al registrar al actuador, ante cambio de estado y como refresco cada segundo. Mantiene como máximo una orden pendiente. Mientras espera, conserva solo el último estado deseado; un apagado sustituye los estados anteriores aún no enviados.
+El servidor envía órdenes al registrar al actuador, ante cambio de estado y como refresco cada segundo. Mantiene una orden vigente pendiente. Mientras espera, conserva solo el último estado deseado. Como excepción, APAGADO interrumpe un color pendiente y se encola sin esperar su APLICADO; los bytes del color que ya estén en cola o en tránsito conservan su orden TCP.
+
+Se conserva como máximo el número de ese color interrumpido. Su APLICADO se acepta una sola vez mientras APAGADO siga pendiente y dentro del plazo de este último, sin modificar el estado confirmado ni renovar el plazo. Confirmar APAGADO elimina el número anterior; cualquier confirmación posterior de ese color se rechaza.
 
 El plazo para procesar APLICADO es **menor de un segundo desde que el servidor encola la orden**. Incluye la espera para transmitir por TCP; no empieza al recibirla el ESP32. Una salida bloqueada tampoco mantiene la sesión indefinidamente.
 
@@ -129,10 +131,10 @@ Las respuestas no generan otra confirmación. Por ejemplo, RECIBIDO no se respon
 |---|---|---|---|---|
 | `ACEPTADO REGISTRO` | Servidor. | Cliente que se registró. | Ninguno; REGISTRO es una palabra fija. | Rol aceptado; permite comenzar el intercambio. |
 | `RECIBIDO numero=42` | Servidor. | Sensor. | numero: identifica la LECTURA confirmada. | Lectura validada y procesada; no confirma actuación física. |
-| `APLICADO numero=81` | Actuador. | Servidor. | numero: exactamente el de la ORDEN pendiente. | Se ejecutaron las escrituras de los pines; no prueba que el LED emita luz. |
+| `APLICADO numero=81` | Actuador. | Servidor. | numero: el de la ORDEN vigente o el color interrumpido, bajo la excepción anterior. | Se ejecutaron las escrituras de los pines; no prueba que el LED emita luz. |
 | `ERROR codigo=FORMATO` | Servidor en la implementación actual; los clientes también pueden informar ERROR. | El otro extremo de su conexión. | codigo: motivo del rechazo. | La sesión termina y no se responde con otro ERROR. |
 
-Una confirmación incorrecta, sin orden pendiente o tardía provoca cierre. El servidor intenta entregar ERROR y cierra; si el cliente no lee, cierra después de 0,5 s. Los errores de transporte y los tiempos agotados se registran y cierran directamente.
+Una confirmación incorrecta, sin orden pendiente o tardía provoca cierre, salvo la excepción acotada del color interrumpido. Al rechazar al sensor, el servidor retira inmediatamente su rol, vacía el filtro y solicita APAGADO. Descarta respuestas aún en cola de la sesión rechazada e intenta enviar ERROR; un envío ya iniciado puede terminar antes. El supervisor cierra al vencer el plazo total de 0,5 s desde el inicio de la terminación, aunque el escritor no avance. La resolución depende del ciclo del supervisor (~25 ms) y del sistema operativo. Los errores de transporte y los tiempos agotados cierran directamente.
 
 | Código del servidor | Motivo |
 |---|---|
@@ -197,7 +199,7 @@ sequenceDiagram
     Note over S: Mediana de tres lecturas: amarillo
     S->>A: ORDEN numero=2, estado=AMARILLO
     A-->>S: APLICADO numero=2
-    Note over S,A: Refresco cada 1 s, con una sola orden pendiente
+    Note over S,A: Refresco cada 1 s; APAGADO puede interrumpir un color pendiente
 ```
 
 N y T son marcadores; se sustituyen por enteros reales. Los clientes pueden conectarse en cualquier orden. Si hay un estado calculado vigente, el actuador lo recibe al registrarse.
@@ -239,7 +241,7 @@ Los ESP32 actuales cierran directamente ante un error local; no generan ERROR. U
 | Registro sin aceptación durante 3 s | El ESP32 cierra e intenta reconectar. |
 | Envío pendiente del ESP32 durante 1 s | Cerrar para evitar una espera indefinida. |
 
-Los plazos se comprueban en cada vuelta del programa, sujetos a la resolución del bucle y del sistema operativo. APAGADO puede esperar a que se resuelva una orden pendiente, hasta un segundo. El temporizador local protege ante pérdida del servidor.
+Los plazos se comprueban en cada vuelta del programa, sujetos a la resolución del bucle y del sistema operativo. APAGADO puede interrumpir un color pendiente sin esperar su confirmación, aunque su entrega depende de la cola y la red. El temporizador local protege ante pérdida del servidor.
 
 ## 9. Lógica de control (distancia → LEDs)
 
@@ -288,23 +290,23 @@ LECTURA numero=1, tiempo_ms=0, distancia_cm=401   (sensor registrado)
 
 Cada caso requiere una conexión nueva si la anterior fue cerrada por un error.
 
-### 10.3 Pruebas sin hardware con Ncat
+### 10.3 Pruebas sin hardware
 
 Desde la raíz del repositorio:
 
 ```powershell
-python -B pruebas/verificar_ncat.py
+python -B -m unittest discover -s pruebas -p "test_*.py" -v
 ```
 
-Este guion usa procesos Ncat reales para simular ambos clientes y responder dentro de los plazos. Conserva las comprobaciones de registro, estados, confirmaciones, inactividad, reconexión y errores. Ver [validación y evidencias](documentacion/VALIDACION.md).
+Las pruebas de integración usan sockets TCP reales en localhost para representar ambos clientes. Comprueban registro, estados, confirmaciones, apagado y reconexión. Ver [validación y evidencias](documentacion/VALIDACION.md).
 
-Para una conexión manual de sensor hacia un servidor iniciado:
+Opcionalmente, para inspeccionar una conexión manual de sensor hacia un servidor iniciado se puede usar Ncat:
 
 ```powershell
 ncat -C 192.168.0.102 5000
 ```
 
-Enviar REGISTRO primero y después las tres lecturas del ejemplo, antes de que venza el plazo de inactividad. No usar escritura manual para evaluar los plazos de un segundo del actuador: utilizar el guion automatizado. Ncat puede invocarse desde `.herramientas/ncat/ncat.exe` si no está en el PATH.
+Enviar REGISTRO primero y después las tres lecturas del ejemplo, antes de que venza el plazo de inactividad. La escritura manual no sirve para evaluar el plazo de un segundo del actuador; esa comprobación pertenece a las pruebas automáticas. Ncat y Wireshark son herramientas opcionales, no requisitos de la consigna.
 
 ### 10.4 Captura en Wireshark
 
@@ -335,7 +337,7 @@ Las flechas representan mensajes de aplicación. Ambos ESP32 inician sus conexio
 - 1,99 cm → apagado; 2 y 10 → rojo; 10,01 y 20 → amarillo; 20,01 y 30 → verde; 30,01 → apagado. La clasificación se aplica a la distancia filtrada.
 - SIN_ECO no equivale a sensor inactivo: se confirma, solicita apagado y renueva el plazo de cinco segundos.
 - RECIBIDO confirma procesamiento de una lectura; APLICADO confirma escrituras de GPIO. Ninguno acredita por sí solo el resultado físico.
-- Hay una sola ORDEN pendiente por sesión del actuador; una nueva clasificación actualiza el estado deseado, sin acumular órdenes antiguas.
+- Hay una ORDEN vigente pendiente por sesión; APAGADO puede interrumpir un color y se conserva como máximo el identificador anterior durante el plazo de APAGADO. Las demás clasificaciones solo actualizan el estado deseado.
 - Una reconexión reinicia la secuencia. El sensor reconecta antes de superar el máximo de su número de lectura.
 - Los HC-SR04 no miden con fiabilidad cerca de cero; admitir 0–400 en el protocolo no declara exactitud física en todo ese intervalo.
 - `MENSAJE_ENCOLADO` registra texto guardado para transmitir, no una entrega completada. `latencia_confirmacion_ms` mide desde ORDEN encolada hasta APLICADO procesado, incluyendo la cola y la red; no es respuesta física completa.
@@ -345,8 +347,8 @@ Las flechas representan mensajes de aplicación. Ambos ESP32 inician sus conexio
 | Prueba | Procedimiento | Resultado esperado | Estado/evidencia |
 |---|---|---|---|
 | Rangos y filtro | Fronteras 2, 10, 20 y 30 cm; tres muestras y lecturas inválidas. | Colores y apagado según apartado 9. | Software aprobado; medición física pendiente. |
-| Protocolo y transporte | Campos incorrectos, líneas fragmentadas o concatenadas, límites de tamaño y roles. | Aceptar mensajes válidos y rechazar los demás. | Python, Unity y Ncat; ver VALIDACION.md. |
-| Inactividad y desconexión | Partir de color activo; interrumpir lecturas o cerrar sensor. | Solicitar apagado y vaciar filtro. | Sockets locales con reloj controlado; WiFi físico pendiente. |
+| Protocolo y transporte | Campos incorrectos, líneas fragmentadas o concatenadas, límites de tamaño y roles. | Aceptar mensajes válidos y rechazar los demás. | Python y Unity; ver VALIDACION.md. |
+| Inactividad y desconexión | Partir de color activo; interrumpir lecturas o cerrar sensor. | Solicitar apagado y vaciar filtro. | TCP local con tiempos reales; WiFi físico pendiente. |
 | Confirmaciones y recuperación | Omitir o alterar APLICADO; reconectar ambos clientes. | Cerrar al vencer el plazo, repetir registro y limpiar sesión. | Software aprobado; pruebas físicas pendientes. |
 | Estabilidad | Operación continua de 15 minutos con ambas placas. | Sin bloqueos ni reinicios. | Pendiente. |
 | Exactitud | Diez lecturas a 2, 5, 10, 15, 20, 25 y 30 cm frente a cinta métrica. | Error absoluto máximo de 3 cm. | Pendiente. |

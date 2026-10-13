@@ -17,6 +17,7 @@ IoT_practica_2/
 │   ├── servidor.py               # Hilos de clientes y supervisión
 │   ├── control.py                # Mediana y rangos
 │   ├── protocolo.py              # Gramática del protocolo
+│   ├── registro.py               # Registro asíncrono con cola acotada
 │   └── __main__.py               # Entrada del programa
 ├── pruebas/                       # Python, Unity y C++ nativo
 ├── documentacion/
@@ -35,7 +36,7 @@ Requiere Python **3.11 o posterior**. Desde la raíz del repositorio:
 python -m servidor --direccion 0.0.0.0 --puerto 5000
 ```
 
-El servidor crea un hilo para aceptar conexiones, uno para supervisar temporizadores y un hilo lector por conexión TCP. La clase `ServidorTcp` utiliza un `threading.RLock` para que todas las modificaciones del estado compartido sean consistentes. No se utiliza `select`.
+El servidor crea un hilo para aceptar conexiones, uno para supervisar temporizadores, un lector y un escritor por conexión TCP, y un hilo independiente para los registros. La clase `ServidorTcp` utiliza un `threading.RLock` para proteger el estado compartido; la espera de red y la escritura de registros ocurren fuera de ese bloqueo. Los hilos de conexión se retiran al terminar. No se utiliza `select`.
 
 ## Configurar las dos placas
 
@@ -73,6 +74,6 @@ python -B pruebas/validar_software.py
 pio test -e native
 ```
 
-El validador reúne salidas y huellas SHA-256 en [documentacion/evidencias/hilos/](documentacion/evidencias/hilos/). Si faltan `g++`, PlatformIO o Ncat, deja constancia **NO EJECUTADO** sin simular aprobaciones. La ejecución de Python y C++ en PC no sustituye las pruebas físicas de exactitud, estabilidad o tiempo real de actuación.
+El validador ejecuta la suite Python, Unity y las dos compilaciones, y guarda salidas y huellas SHA-256 en una carpeta por ejecución bajo [documentacion/evidencias/esenciales/](documentacion/evidencias/esenciales/). Si falta PlatformIO, deja constancia **NO EJECUTADO**. No necesita Ncat. Las pruebas automáticas protegen las funciones esenciales; en el informe se resumen por requisito, sin describir cada caso interno. La ejecución en PC no sustituye las mediciones físicas de exactitud, estabilidad o respuesta.
 
 Documentos complementarios: [arquitectura](documentacion/ARQUITECTURA_HILOS.md), [validación](documentacion/VALIDACION.md), [plan](PLAN.md).

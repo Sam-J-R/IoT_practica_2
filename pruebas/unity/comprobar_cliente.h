@@ -73,10 +73,6 @@ void comprobarSesionLimpia() {
 #endif
 }
 
-void probarRegistroFragmentado() {
-    registrar();
-}
-
 void probarReconexionYLimpieza() {
     registrar();
 #ifndef PRUEBA_SENSOR
@@ -105,6 +101,7 @@ void probarReconexionYLimpieza() {
 #endif
 }
 
+#ifndef PRUEBA_SENSOR
 void probarDesconexionTcp() {
     registrar();
 #ifndef PRUEBA_SENSOR
@@ -117,6 +114,7 @@ void probarDesconexionTcp() {
     TEST_ASSERT_FALSE(conexion.registrado());
     comprobarSesionLimpia();
 }
+#endif
 
 void probarMensajeIncorrecto() {
     registrar();
@@ -130,6 +128,7 @@ void probarMensajeIncorrecto() {
     comprobarSesionLimpia();
 }
 
+#ifdef PRUEBA_SENSOR
 void probarEnvioBloqueado() {
     envioBloqueadoSimulado = true;
     loop();
@@ -140,7 +139,9 @@ void probarEnvioBloqueado() {
     loop();
     TEST_ASSERT_FALSE(conexionSimulada);
 }
+#endif
 
+#ifdef PRUEBA_SENSOR
 void probarRegistroSinRespuesta() {
     loop();
     tiempoSimulado = 2999;
@@ -150,6 +151,7 @@ void probarRegistroSinRespuesta() {
     loop();
     TEST_ASSERT_FALSE(conexionSimulada);
 }
+#endif
 
 #ifdef PRUEBA_SENSOR
 void probarMuestreoYConfirmaciones() {
@@ -221,12 +223,17 @@ void probarApagadoSinOrdenes() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(probarRegistroFragmentado);
     RUN_TEST(probarReconexionYLimpieza);
+#ifndef PRUEBA_SENSOR
     RUN_TEST(probarDesconexionTcp);
+#endif
     RUN_TEST(probarMensajeIncorrecto);
+#ifdef PRUEBA_SENSOR
     RUN_TEST(probarEnvioBloqueado);
+#endif
+#ifdef PRUEBA_SENSOR
     RUN_TEST(probarRegistroSinRespuesta);
+#endif
 #ifdef PRUEBA_SENSOR
     RUN_TEST(probarMuestreoYConfirmaciones);
     RUN_TEST(probarEsperaConfirmacionTrasPausa);

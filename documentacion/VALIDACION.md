@@ -1,96 +1,38 @@
-# Validación del proyecto unificado con hilos
+# Validación esencial
 
-## 1. Qué versión se está evaluando
+Esta es una guía de trabajo previa al informe oficial. Se documentan los requisitos y resultados relevantes, sin convertir cada prueba automática en una sección del informe.
 
-El código actual sustituye el servidor `select` por un **servidor Python con hilos** y agrupa el firmware de las dos placas en **un único proyecto PlatformIO**. Se conservan los mensajes de la versión 1 del protocolo, los GPIO existentes y la clasificación por mediana.
+## Comprobaciones automáticas
 
-Las pruebas anteriores de los ESP32 y los registros del servidor anterior se consideran **históricos**: el funcionamiento físico comunicado por el grupo se realizó con la implementación anterior a esta modificación. Es necesario comprobar las placas nuevamente después de cargar la nueva organización del proyecto.
-
-## 2. Resultados ejecutados con la arquitectura nueva
-
-Se han generado resultados reproducibles mediante el archivo `pruebas/validar_software.py`. Los archivos auténticos se encuentran en [evidencias/hilos/](evidencias/hilos/).
-
-| Verificación | Resultado observado en el entorno de revisión | Evidencia |
-|---|---|---|
-| Python: lógica, protocolo y TCP concurrente | **24/24 aprobadas** | [pruebas_python.txt](evidencias/hilos/pruebas_python.txt) |
-| Robustez de Python (cinco ejecuciones consecutivas) | **5/5 suites aprobadas, 24 casos por ejecución** | [pruebas_python_repetibilidad.txt](evidencias/hilos/pruebas_python_repetibilidad.txt); repetir en las laptops según el comando inferior |
-| C++ nativo con dobles de Arduino | **9 verificaciones aprobadas** | [pruebas_cpp_nativas.txt](evidencias/hilos/pruebas_cpp_nativas.txt) |
-| Compilación/sintaxis C++ del firmware de sensor y actuador con `g++` y dobles | **Correcta** | [sintaxis_sensor.txt](evidencias/hilos/sintaxis_sensor.txt), [sintaxis_actuador.txt](evidencias/hilos/sintaxis_actuador.txt) y [resumen.json](evidencias/hilos/resumen.json) |
-| PlatformIO Unity | **NO EJECUTADO en este entorno:** no hay PlatformIO instalado | [pruebas_unity.txt](evidencias/hilos/pruebas_unity.txt) |
-| Compilación para DOIT ESP32 real | **NO EJECUTADA en este entorno:** no hay PlatformIO instalado | [sensor](evidencias/hilos/compilacion_esp32_sensor.txt) / [actuador](evidencias/hilos/compilacion_esp32_actuador.txt) |
-| Ncat | **NO EJECUTADO en este entorno:** binario no disponible | [pruebas_ncat.txt](evidencias/hilos/pruebas_ncat.txt) |
-| Conexión física, exactitud, Wi-Fi, latencia sensor→LED | **PENDIENTE de nueva demostración** | No se presentan resultados no medidos |
-
-El archivo [resumen.json](evidencias/hilos/resumen.json) conserva comandos, códigos de salida, hora UTC y huellas SHA-256 para identificar exactamente qué fuentes se probaron. La falta de herramientas se distingue explícitamente de un fallo de ejecución.
-
-## 3. Qué validan las pruebas Python
-
-La suite incluye pruebas de lógica, gramática y sockets TCP reales contra la implementación multihilo:
-
-- Rangos `2–10`, `10–20`, `20–30`, fuera de rango y distancias decimales.
-- Mediana de tres lecturas y recuperación de filtrado después de `SIN_ECO`.
-- `REGISTRO`, `LECTURA`, `RECIBIDO`, `ORDEN`, `APLICADO` y mensajes `ERROR`.
-- Recepción fragmentada o concatenada; control del límite de 128 bytes.
-- Concurrencia real entre dos conexiones y presencia de los hilos supervisor/aceptador.
-- Inactividad del sensor y apagado lógico del actuador, pérdida de socket, reconexión, reemplazo de rol y uso del estado más reciente.
-- Confirmación incorrecta o ausente, roles no autorizados y secuencias repetidas.
-
-Las pruebas de inactividad utilizan tiempos **reales acortados mediante configuración de prueba** para completar la suite rápidamente; la configuración de producción conserva **5 segundos**. No se certifica un error de tiempo de 0 ms por haberlas superado.
-
-## 4. Qué validan las pruebas C++
-
-El programa nativo (`pruebas/nativo_compilador/test_componentes.cpp`) prueba el parser de mensajes, detección de argumentos repetidos, enteros de 32 bits, conversión de eco a centímetros, ausencia de eco, rechazo fuera del rango representable, selección exclusiva de colores y apagado.
-
-Se compila el código C++ real contra dobles locales de las funciones de Arduino, sin simular las salidas de una compilación para ESP32. La verificación de sintaxis de `main.cpp` de ambas placas es independiente de la prueba física del hardware. El test Unity original se conserva como un ensayo adicional reproducible con PlatformIO.
-
-## 5. Cómo reproducir en las laptops
-
-Desde la raíz del repositorio, con Python 3.11 o posterior:
+Desde la raíz del repositorio:
 
 ```powershell
 python -B pruebas/validar_software.py
 ```
 
-Este comando guarda registros bajo `documentacion/evidencias/hilos/` y produce `resumen.json`. Para pruebas individuales:
+El validador ejecuta Python, Unity y la compilación de ambas placas. Guarda las salidas y hashes en una carpeta nueva bajo `documentacion/evidencias/esenciales/`. Admite `--platformio RUTA` y `--salida CARPETA`.
 
-```powershell
-python -B -m unittest discover -s pruebas -p "test_*.py" -v
-pio test -e native
-pio run -e esp32_sensor
-pio run -e esp32_actuador
-python -m servidor --direccion 0.0.0.0 --puerto 5000
-```
+La ejecución del 13 de octubre de 2026 aprobó **24 pruebas Python, 17 Unity y las dos compilaciones ESP32**. [Resumen y fuentes comprobadas](evidencias/esenciales/2026-10-13/resumen.json). La suite conserva rangos y filtro, mensajes TCP, adquisición y LEDs simulados, apagado, reconexión y los fallos críticos corregidos. Se eliminaron casos redundantes, el segundo ensayo C++ y el guion Ncat duplicado.
 
-Para Ncat (si está instalado):
+Estas comprobaciones se pueden resumir en un párrafo del informe. No prueban el circuito, la Wi-Fi real ni las métricas físicas. Los directorios de evidencias anteriores son históricos y no se reescribieron.
 
-```powershell
-python -B pruebas/verificar_ncat.py --ncat "C:\RUTA\ncat.exe"
-```
+## Cinco escenarios para la validación física
 
-El validador verifica si está disponible Ncat y ejecuta el escenario automáticamente; su salida debe guardarse **después** de probar el nuevo servidor por hilos.
+| Escenario | Qué demostrar y conservar |
+|---|---|
+| 1. Integración y rangos (RF1–RF4) | Dos ESP32 conectados por Wi-Fi a la PC; lecturas y órdenes TCP; rojo en [2,10], amarillo en (10,20], verde en (20,30]; comprobar fronteras, fuera de rango y SIN_ECO. Foto del circuito, vídeo y registro de una ejecución. |
+| 2. Exactitud | Comparar diez lecturas por punto en 2, 5, 10, 15, 20, 25 y 30 cm con una referencia física. Registrar error absoluto y máximo; objetivo declarado ≤ 3 cm. |
+| 3. Respuesta | Medir 20 cambios entre rangos desde el cambio físico de distancia hasta el LED, usando vídeo con una referencia temporal común. Objetivo declarado ≤ 1 s. APLICADO no mide ese recorrido completo. |
+| 4. Estabilidad y muestreo | Operar 15 minutos continuos, sin reinicios ni bloqueos, registrando las lecturas por segundo. Objetivo declarado ≥ 2 lecturas/s, diferenciando intentos, mediciones válidas y SIN_ECO. Puede realizarse en la misma sesión del escenario 1. |
+| 5. Recuperación | Desconectar sensor, actuador, Wi-Fi y servidor por separado; observar apagado y reconexión. Comparar con los plazos del protocolo, distinguiendo cierre TCP detectado de pérdida silenciosa de red. |
 
-## 6. Verificaciones físicas pendientes
+Los 15 minutos y diez lecturas por punto son elecciones del proyecto, no cantidades obligatorias de la consigna. Los valores de referencia de esta deben declararse y verificarse, no presentarse como mediciones ya realizadas. Ncat y Wireshark son opcionales.
 
-| Propiedad | Objetivo declarado | Cómo documentarla |
-|---|---|---|
-| Integración real | Sensor→servidor→actuador por TCP Wi-Fi | Fotografía general, monitores serie y registro JSONL con identificadores y horas |
-| Exactitud | Error máximo ≤ 3 cm entre 2 y 30 cm | Al menos cinco medidas por punto, referencia con cinta métrica y error absoluto sin signo |
-| Estabilidad | Operación continua ≥ 10 minutos | Inicio/fin, registros originales, conteo de lecturas y ausencia de reinicios |
-| Muestreo | ≥ 2 lecturas/s | Diferencias de tiempos del sensor y recepciones del servidor |
-| Respuesta extremo a extremo | ≤ 1 s como referencia | Video de 60 fps o instrumentos sincronizados; no usar `APLICADO` como equivalente a LED físico |
-| Tolerancia a fallos | Apagado y recuperación controlada | Desconectar sensor/actuador/laptop e identificar plazos y estados observados |
+## Antes de tomar resultados
 
-Los requisitos y métricas definitivos deben coincidir con la consigna del docente. No se transfieren cifras experimentales de la Práctica 1 a esta nueva implementación.
+- Comprobar y fotografiar el montaje real, incluido el divisor de Echo y las resistencias de cada LED.
+- Usar la versión actual de ambos firmwares y del servidor.
+- Corregir el analizador antes de usar sus cifras: actualmente mezcla identificadores de sesión entre ejecuciones del mismo archivo y no evalúa la pérdida de registros. Mientras tanto, guardar cada ensayo en un JSONL distinto con `--registro` y revisar cualquier aviso `REGISTROS_DESCARTADOS` o `FALLO_REGISTRO`.
+- Medir el muestreo del sensor y la recepción por separado. No confundir el intervalo programado de 100 ms con una frecuencia mínima observada.
 
-## 7. Trazabilidad del requisito al código
-
-| Requisito | Código | Prueba disponible |
-|---|---|---|
-| RF1 Medición HC-SR04 | [SensorUltrasonico](../firmware/src/sensor/SensorUltrasonico.cpp) | Verificación C++ con eco simulado; falta ensayo físico |
-| RF2 Tres rangos | [ControlDistancia](../servidor/control.py) | `test_control.py`, integración TCP |
-| RF3 Actuar según distancia | [IndicadorLeds](../firmware/src/actuador/IndicadorLeds.cpp) | Prueba de GPIO simulado y `ORDEN`/`APLICADO` |
-| RF4 Sockets TCP/Wi-Fi | [ServidorTcp](../servidor/servidor.py), [ClienteTcp](../comun/ClienteTcp.h) | `test_integracion.py` TCP local; falta Wi-Fi físico con versión nueva |
-
-## 8. Evidencia histórica
-
-Los archivos bajo `documentacion/evidencias/software/` pertenecen a ejecuciones anteriores. No se deben citar como prueba de que la versión con hilos y único PlatformIO se ejecutó físicamente o compiló para ESP32. Se conservaron para trazabilidad, y los nuevos resultados están separados en `evidencias/hilos/`.
+Los cinco escenarios siguen pendientes de ejecución física con esta versión. Sus resultados alimentarán la sección Pruebas y Validaciones del informe oficial; no hace falta narrar las 41 comprobaciones internas.

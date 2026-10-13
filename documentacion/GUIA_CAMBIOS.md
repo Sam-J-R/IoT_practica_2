@@ -4,9 +4,9 @@ Este paquete se creó **a partir del ZIP `IoT_practica_2(2).zip`**, sin editar e
 
 ## 1. Cambios en el servidor
 
-- `servidor/servidor.py`: se sustituye el bucle `select` por `threading` (aceptador, lector por cliente y supervisor), con un `RLock` que protege las estructuras compartidas.
+- `servidor/servidor.py`: se sustituye el bucle `select` por `threading` (aceptador, lector y escritor por cliente y supervisor), con un `RLock` que protege las estructuras compartidas. `servidor/registro.py` escribe los eventos en un hilo independiente.
 - Se conservan el filtro `ControlDistancia`, el protocolo en español, los roles, la confirmación `APLICADO`, los tiempos declarados y los archivos JSONL.
-- Se limita a 250 ms el tiempo de las operaciones de socket de cada cliente. Los envíos cortos ocurren bajo el bloqueo global; para dos ESP32 es simple, pero un cliente de red muy lento puede retrasar brevemente a los demás.
+- Se limita a 250 ms cada operación de socket. Los envíos ocurren fuera del bloqueo global y el supervisor limita a 0,5 s el cierre por error. El rechazo del sensor invalida sus lecturas inmediatamente. Los hilos terminados se liberan y solo se conserva una confirmación interrumpida hasta confirmar APAGADO o cerrar la sesión.
 - Se eliminó el servidor antiguo `server/server.py` de la copia entregable para no tener dos implementaciones activas.
 
 ## 2. Un único proyecto PlatformIO
@@ -19,11 +19,10 @@ Este paquete se creó **a partir del ZIP `IoT_practica_2(2).zip`**, sin editar e
 
 ## 3. Pruebas actualizadas
 
-- `pruebas/test_integracion.py`: 15 ensayos TCP con servidor real multihilo, sin reloj simulado.
+- `pruebas/test_integracion.py`: integración TCP esencial con servidor real multihilo. `test_robustez_servidor.py` y `test_registro.py` conservan las regresiones de fallos críticos.
 - `pruebas/test_control.py` y `pruebas/test_protocolo.py`: continúan verificando rangos y formato.
-- `pruebas/nativo_compilador/test_componentes.cpp`: ensayo C++ independiente compilable con `g++` y dobles de Arduino.
-- `pruebas/validar_software.py`: guarda salidas y hashes SHA-256 de código en `documentacion/evidencias/hilos/`. Detecta explícitamente herramientas que faltan.
-- `pruebas/verificar_ncat.py`: se adaptó al nuevo servidor, que inicia y atiende sus propios hilos.
+- Se retiraron el ensayo C++ independiente y el guion Ncat porque repetían comprobaciones ya cubiertas por Unity y TCP local.
+- `pruebas/validar_software.py`: ejecuta Python, Unity y las dos compilaciones, y guarda salidas y hashes en una carpeta por ejecución bajo `documentacion/evidencias/esenciales/`.
 
 ## 4. Cambios que deben verificar en las laptops
 
@@ -36,7 +35,7 @@ pio run -e esp32_actuador
 pio test -e native
 ```
 
-**No** presentar los archivos antiguos en `documentacion/evidencias/software/` como una validación de la nueva versión con hilos. Las evidencias de esta versión están en `documentacion/evidencias/hilos/`.
+Los directorios `evidencias/software/`, `evidencias/hilos/` y `evidencias/correcciones_2_4/` conservan ejecuciones históricas. Las nuevas validaciones de la suite reducida están en `evidencias/esenciales/`; consultar su resumen para identificar las fuentes comprobadas.
 
 ## 5. Subir los cambios a GitHub
 

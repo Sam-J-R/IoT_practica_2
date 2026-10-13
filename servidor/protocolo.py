@@ -76,8 +76,9 @@ class ProtocoloAplicacion:
         if not separador or not texto:
             raise ErrorProtocolo("FORMATO")
         argumentos: dict[str, Any] = {}
-        for campo in texto.split(","):
-            if campo.startswith(" "):
+        for indice, campo in enumerate(texto.split(",")):
+            # Solo la coma admite un espacio opcional; el comando exige uno.
+            if indice > 0 and campo.startswith(" "):
                 campo = campo[1:]
             if campo.count("=") != 1:
                 raise ErrorProtocolo("FORMATO")

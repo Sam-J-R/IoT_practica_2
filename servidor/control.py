@@ -11,6 +11,7 @@ class ConfiguracionServidor:
         self.espera_registro: float = 3.0
         self.inactividad_sensor: float = 5.0
         self.espera_confirmacion: float = 1.0
+        self.espera_cierre: float = 0.5
         self.intervalo_refresco: float = 1.0
         self.distancia_minima: float = 2.0
         self.umbral_rojo: float = 10.0

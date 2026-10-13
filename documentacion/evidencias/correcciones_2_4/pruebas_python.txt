@@ -1,0 +1,45 @@
+test_error_vacia_el_filtro_y_exige_tres_nuevas (test_control.PruebasControl.test_error_vacia_el_filtro_y_exige_tres_nuevas) ... ok
+test_espera_tres_lecturas_y_rechaza_un_pico (test_control.PruebasControl.test_espera_tres_lecturas_y_rechaza_un_pico) ... ok
+test_fronteras_y_datos_no_confiables (test_control.PruebasControl.test_fronteras_y_datos_no_confiables) ... ok
+test_colores_decimales_y_sin_eco (test_integracion.PruebasIntegracionHilos.test_colores_decimales_y_sin_eco) ... ok
+test_confirmacion_agotada (test_integracion.PruebasIntegracionHilos.test_confirmacion_agotada) ... ok
+test_confirmacion_incorrecta_rechazada (test_integracion.PruebasIntegracionHilos.test_confirmacion_incorrecta_rechazada) ... ok
+test_consola_bloqueada_no_detiene_tcp_ni_supervision (test_integracion.PruebasIntegracionHilos.test_consola_bloqueada_no_detiene_tcp_ni_supervision) ... ok
+test_desconexion_sensor_apaga_leds (test_integracion.PruebasIntegracionHilos.test_desconexion_sensor_apaga_leds) ... ok
+test_error_cliente_sin_respuesta_recursiva (test_integracion.PruebasIntegracionHilos.test_error_cliente_sin_respuesta_recursiva) ... ok
+test_estado_final_no_se_encola_historico (test_integracion.PruebasIntegracionHilos.test_estado_final_no_se_encola_historico) ... ok
+test_fragmentacion_y_concatenacion_tcp (test_integracion.PruebasIntegracionHilos.test_fragmentacion_y_concatenacion_tcp) ... ok
+test_hilos_para_conexiones_simultaneas (test_integracion.PruebasIntegracionHilos.test_hilos_para_conexiones_simultaneas) ... ok
+test_inactividad_sensor_apaga_leds (test_integracion.PruebasIntegracionHilos.test_inactividad_sensor_apaga_leds) ... ok
+test_reconexion_actuador_conserva_color (test_integracion.PruebasIntegracionHilos.test_reconexion_actuador_conserva_color) ... ok
+test_reconexiones_liberan_hilos_lectores_y_escritores (test_integracion.PruebasIntegracionHilos.test_reconexiones_liberan_hilos_lectores_y_escritores) ... ok
+test_reemplazo_de_sensor (test_integracion.PruebasIntegracionHilos.test_reemplazo_de_sensor) ... ok
+test_refresco_sin_nuevas_lecturas (test_integracion.PruebasIntegracionHilos.test_refresco_sin_nuevas_lecturas) ... ok
+test_registro_tardio_y_longitud (test_integracion.PruebasIntegracionHilos.test_registro_tardio_y_longitud) ... ok
+test_secuencia_repetida_y_rol_equivocado (test_integracion.PruebasIntegracionHilos.test_secuencia_repetida_y_rol_equivocado) ... ok
+test_sensor_rechazado_apaga_antes_de_confirmar_color (test_integracion.PruebasIntegracionHilos.test_sensor_rechazado_apaga_antes_de_confirmar_color) ... ok
+test_sin_eco_mantiene_actividad (test_integracion.PruebasIntegracionHilos.test_sin_eco_mantiene_actividad) ... ok
+test_datos_rechazados (test_protocolo.PruebasProtocolo.test_datos_rechazados) ... ok
+test_distancias_decimales_y_sin_eco (test_protocolo.PruebasProtocolo.test_distancias_decimales_y_sin_eco) ... ok
+test_fragmentacion_concatenacion_y_crlf (test_protocolo.PruebasProtocolo.test_fragmentacion_concatenacion_y_crlf) ... ok
+test_limite_incluye_terminador (test_protocolo.PruebasProtocolo.test_limite_incluye_terminador) ... ok
+test_linea_valida_antes_de_error_se_procesa (test_protocolo.PruebasProtocolo.test_linea_valida_antes_de_error_se_procesa) ... ok
+test_rechaza_codificacion_y_controles (test_protocolo.PruebasProtocolo.test_rechaza_codificacion_y_controles) ... ok
+test_cierre_no_espera_indefinidamente_al_disco (test_registro.PruebasRegistro.test_cierre_no_espera_indefinidamente_al_disco) ... ok
+test_cierre_normal_vacia_cola_y_deja_jsonl_legible (test_registro.PruebasRegistro.test_cierre_normal_vacia_cola_y_deja_jsonl_legible) ... ok
+test_consola_fallida_no_impide_escribir_jsonl (test_registro.PruebasRegistro.test_consola_fallida_no_impide_escribir_jsonl) ... ok
+test_destino_bloqueado_no_bloquea_productor_y_cola_es_acotada (test_registro.PruebasRegistro.test_destino_bloqueado_no_bloquea_productor_y_cola_es_acotada) ... ok
+test_error_de_disco_no_sale_al_productor_y_cierra_el_archivo (test_registro.PruebasRegistro.test_error_de_disco_no_sale_al_productor_y_cierra_el_archivo) ... ok
+test_cien_hilos_terminados_se_liberan (test_robustez_servidor.PruebasRobustezServidor.test_cien_hilos_terminados_se_liberan) ... ok
+test_cien_interrupciones_no_acumulan_confirmaciones_omitidas (test_robustez_servidor.PruebasRobustezServidor.test_cien_interrupciones_no_acumulan_confirmaciones_omitidas) ... ok
+test_cierre_del_rechazado_no_invalida_al_sensor_nuevo (test_robustez_servidor.PruebasRobustezServidor.test_cierre_del_rechazado_no_invalida_al_sensor_nuevo) ... ok
+test_cierre_total_a_medio_segundo_aunque_escritor_no_avance (test_robustez_servidor.PruebasRobustezServidor.test_cierre_total_a_medio_segundo_aunque_escritor_no_avance) ... ok
+test_confirmacion_interrumpida_no_confirma_apagado (test_robustez_servidor.PruebasRobustezServidor.test_confirmacion_interrumpida_no_confirma_apagado) ... ok
+test_confirmacion_interrumpida_tardia_no_renueva_el_plazo (test_robustez_servidor.PruebasRobustezServidor.test_confirmacion_interrumpida_tardia_no_renueva_el_plazo) ... ok
+test_fallo_inesperado_de_hilo_cierra_servicio_y_libera_sesiones (test_robustez_servidor.PruebasRobustezServidor.test_fallo_inesperado_de_hilo_cierra_servicio_y_libera_sesiones) ... ok
+test_rechazo_apaga_sin_esperar_al_escritor_ni_a_confirmacion (test_robustez_servidor.PruebasRobustezServidor.test_rechazo_apaga_sin_esperar_al_escritor_ni_a_confirmacion) ... ok
+
+----------------------------------------------------------------------
+Ran 40 tests in 8.137s
+
+OK

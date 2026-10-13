@@ -1,0 +1,40 @@
+{
+  "fecha_utc": "2026-10-13T16:42:44.4016391Z",
+  "revision_base": "20ce54953878634a8d1eafb3993df773b124d8d1",
+  "fuentes": "Arbol de trabajo con correcciones 2 a 4, sin commit",
+  "plataforma": "Windows",
+  "python": "Python 3.11.7",
+  "comando": [
+    "C:/Users/Maria/.platformio/penv/Scripts/python.exe",
+    "-B",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "pruebas",
+    "-p",
+    "test_*.py",
+    "-v"
+  ],
+  "codigo_salida": 0,
+  "pruebas": 40,
+  "estado": "APROBADO",
+  "salida": "pruebas_python.txt",
+  "sha256_salida": "8ce7540f3f33aa7508df633a10b729eb6f1da818e03e81b510c82aaaf8f2f550",
+  "sha256_codigo": {
+    "pruebas/analizar_registro.py": "1bc9837534071c6115de44d80b3b04045535f0784585a8df36a36a1df1337d27",
+    "pruebas/test_control.py": "252c853ff99b509a81855b017da513edade7bb21087f5be0dbd77c4871ca1f08",
+    "pruebas/test_integracion.py": "9ac42dab8398aefc73fac98554a7730ad078660254f29aeeae576cdb33f2e98a",
+    "pruebas/test_protocolo.py": "4b1e61bbd592b47211c97eff94ef33eb8aa11dcdeb0f90e0a8944bbc43959c21",
+    "pruebas/test_registro.py": "c94d0e8d6e59666c7b384e530e3fdc6d3d62fa5e797e5308216d0326d9a5c772",
+    "pruebas/test_robustez_servidor.py": "f0f0a494b0061d0f66d08184c37d0dd9ad967cf1e70a5aedd5b847948d71616f",
+    "pruebas/validar_software.py": "3cf021a13c785561030b218b8186a61709cd25c39556116adaa43bd9e576cdc2",
+    "pruebas/verificar_ncat.py": "3766600fb0b0ebf1ac3394e6bfdaea64e5c921d8174ddf1cc05dab6295059d54",
+    "servidor/__main__.py": "41580602e3caa3cd896f2fc45491237925834ab1726831a7de09018e7b0065c4",
+    "servidor/control.py": "5852644514d59e3de530f6d047b887c50773bbff55b87d302dfada59788aefcd",
+    "servidor/protocolo.py": "72bc0893e8c73a946e6001c87e31aa0526b4038ac667095ce5d0e0fcc86ab06c",
+    "servidor/registro.py": "9354410d4c57ea26720983e26f27b1f8299d9c69f55e3a4e186fa818225bfb87",
+    "servidor/servidor.py": "c13ff07e3d783e2b58d2cba1200d080d2b61bea0135b273c74050715229558f4"
+  },
+  "nota": "Pruebas Python con TCP localhost y dobles controlados; no acredita funcionamiento fisico de los ESP32."
+}
